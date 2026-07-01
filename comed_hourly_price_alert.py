@@ -7,8 +7,8 @@ Alerts you on meaningful price movements with ComEd's 5-minute Hourly Pricing.
 What it watches:
 - When prices drop to -0.01¢/kWh or below  → "ComEd is now paying you to use electricity!"
 - When prices rise back above +0.01¢/kWh after being negative
-- When prices spike above +0.10¢/kWh       → "High rates started!"
-- When prices drop back below +0.10¢/kWh after being high
+- When prices spike above +10.0¢/kWh       → "High rates started!"
+- When prices drop back below +10.0¢/kWh after being high
 
 This gives you clean, useful notifications instead of constant spam while prices stay in one zone.
 
@@ -24,8 +24,13 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 # ==================== CONFIGURATION ====================
+NEGATIVE_THRESHOLD = -0.01      # Enter "paid to use" territory
+EXIT_NEGATIVE_THRESHOLD = 0.01  # Must rise above this to exit negative mode
+
+HIGH_THRESHOLD = 10.0           # Enter "high price" territory (updated to 10¢)
+EXIT_HIGH_THRESHOLD = 10.0      # Must fall below this to exit high mode
+
 # These will automatically use GitHub Secrets when running in Actions.
-# You can also hardcode values here for local testing if needed.
 NTFY_TOPIC = os.getenv("NTFY_TOPIC") or ""
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or ""
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") or ""
@@ -56,9 +61,9 @@ def get_current_price():
 
 def determine_zone(price):
     """Return current zone: 'negative', 'high', or 'normal'."""
-    if price <= -0.01:
+    if price <= NEGATIVE_THRESHOLD:
         return "negative"
-    elif price > 0.10:
+    elif price > HIGH_THRESHOLD:
         return "high"
     else:
         return "normal"
@@ -143,7 +148,7 @@ def main():
     if previous_zone != "negative" and current_zone == "negative":
         title = "ComEd is now PAYING you!"
         msg = (f"Price dropped to {price:.2f}¢/kWh\n"
-               f"This is ≤ -0.01¢ — they're paying you to use electricity right now.\n"
+               f"This is ≤ {NEGATIVE_THRESHOLD}¢ — they're paying you to use electricity right now.\n"
                f"Time: {dt_local.strftime('%I:%M %p')}")
         send_notification(title, msg, "💰")
         alert_sent = True
@@ -152,25 +157,25 @@ def main():
     elif previous_zone == "negative" and current_zone != "negative":
         title = "Negative pricing ended"
         msg = (f"Price rose to {price:.2f}¢/kWh\n"
-               f"No longer in the 'paid to use' zone (now above +0.01¢).\n"
+               f"No longer in the 'paid to use' zone (now above {EXIT_NEGATIVE_THRESHOLD}¢).\n"
                f"Time: {dt_local.strftime('%I:%M %p')}")
         send_notification(title, msg, "✅")
         alert_sent = True
 
-    # 3. Entered HIGH zone (> 0.10¢)
+    # 3. Entered HIGH zone (> 10.0¢)
     elif previous_zone != "high" and current_zone == "high":
         title = "High electricity rates started"
         msg = (f"Price jumped to {price:.2f}¢/kWh\n"
-               f"Now above 0.10¢/kWh — expensive period.\n"
+               f"Now above {HIGH_THRESHOLD}¢/kWh — expensive period.\n"
                f"Time: {dt_local.strftime('%I:%M %p')}")
         send_notification(title, msg, "🔥")
         alert_sent = True
 
-    # 4. Exited HIGH zone (dropped back below 0.10¢)
+    # 4. Exited HIGH zone (dropped back below 10.0¢)
     elif previous_zone == "high" and current_zone != "high":
         title = "High rates ended"
         msg = (f"Price dropped to {price:.2f}¢/kWh\n"
-               f"No longer above 0.10¢.\n"
+               f"No longer above {EXIT_HIGH_THRESHOLD}¢.\n"
                f"Time: {dt_local.strftime('%I:%M %p')}")
         send_notification(title, msg, "📉")
         alert_sent = True
