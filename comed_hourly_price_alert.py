@@ -7,8 +7,8 @@ Alerts you on meaningful price movements with ComEd's 5-minute Hourly Pricing.
 What it watches:
 - When prices drop to -0.01¢/kWh or below  → "ComEd is now paying you to use electricity!"
 - When prices rise back above +0.01¢/kWh after being negative
-- When prices spike above +10.0¢/kWh       → "High rates started!"
-- When prices drop back below +10.0¢/kWh after being high
+- When prices spike above +8.0¢/kWh       → "High rates started!"
+- When prices drop back below +8.0¢/kWh after being high
 
 This gives you clean, useful notifications instead of constant spam while prices stay in one zone.
 
@@ -27,8 +27,8 @@ from zoneinfo import ZoneInfo
 NEGATIVE_THRESHOLD = -0.01      # Enter "paid to use" territory
 EXIT_NEGATIVE_THRESHOLD = 0.01  # Must rise above this to exit negative mode
 
-HIGH_THRESHOLD = 10.0           # Enter "high price" territory (updated to 10¢)
-EXIT_HIGH_THRESHOLD = 10.0      # Must fall below this to exit high mode
+HIGH_THRESHOLD = 8.0            # Enter "high price" territory (updated to 8¢)
+EXIT_HIGH_THRESHOLD = 8.0       # Must fall below this to exit high mode
 
 # These will automatically use GitHub Secrets when running in Actions.
 NTFY_TOPIC = os.getenv("NTFY_TOPIC") or ""
@@ -162,7 +162,7 @@ def main():
         send_notification(title, msg, "✅")
         alert_sent = True
 
-    # 3. Entered HIGH zone (> 10.0¢)
+    # 3. Entered HIGH zone (> 8.0¢)
     elif previous_zone != "high" and current_zone == "high":
         title = "High electricity rates started"
         msg = (f"Price jumped to {price:.2f}¢/kWh\n"
@@ -171,7 +171,7 @@ def main():
         send_notification(title, msg, "🔥")
         alert_sent = True
 
-    # 4. Exited HIGH zone (dropped back below 10.0¢)
+    # 4. Exited HIGH zone (dropped back below 8.0¢)
     elif previous_zone == "high" and current_zone != "high":
         title = "High rates ended"
         msg = (f"Price dropped to {price:.2f}¢/kWh\n"

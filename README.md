@@ -5,8 +5,8 @@
 Specifically:
 - **ComEd starts paying you** (price ≤ -0.01¢/kWh)
 - **Paid-to-use period ends** (price rises back above +0.01¢/kWh)
-- **High rates begin** (price > +10.0¢/kWh)
-- **High rates end** (price drops back below +10.0¢/kWh)
+- **High rates begin** (price > +8.0¢/kWh)
+- **High rates end** (price drops back below +8.0¢/kWh)
 
 This gives you clean, actionable notifications instead of spam while prices stay in one zone.
 
@@ -21,7 +21,7 @@ The script checks the public ComEd 5-minute pricing API and tracks **zone transi
 | Zone       | Condition              | What happens |
 |------------|------------------------|--------------|
 | `negative` | ≤ -0.01¢/kWh           | "ComEd is now PAYING you!" |
-| `high`     | > +10.0¢/kWh           | "High electricity rates started" |
+| `high`     | > +8.0¢/kWh           | "High electricity rates started" |
 | `normal`   | Everything else        | Quiet (unless transitioning) |
 
 It only sends alerts when you **enter or exit** these zones.
