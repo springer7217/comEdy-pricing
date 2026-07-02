@@ -28,10 +28,4 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
 
-      - name: Persist state file
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add comed_alert_state.json || true
-          git commit -m "Update price state [skip ci]" || exit 0
-          git push || true
+      # State commit step removed for reliability (milestones now use API history)
