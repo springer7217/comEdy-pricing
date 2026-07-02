@@ -2,11 +2,8 @@
 """
 ComEd Hourly Price Alert Tool (comEdy-pricing)
 
-Features:
-- 10¢ milestone alerts (history-based)
-- Negative pricing alerts
-- One-time "below 10¢" confirmation
-- Periodic low-price summary while below 10¢ (every ~3 hours)
+Temporary change: Force reset of below_10_alert_sent flag on next run
+so the confirmation notification fires.
 """
 
 import requests
@@ -27,8 +24,7 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") or ""
 STATE_FILE = "comed_alert_state.json"
 LOG_FILE = "comed_price_log.txt"
 
-# Low-price summary cooldown (seconds)
-LOW_SUMMARY_COOLDOWN = 3 * 3600   # 3 hours
+LOW_SUMMARY_COOLDOWN = 3 * 3600
 # =======================================================
 
 def get_current_price_and_history():
@@ -46,7 +42,7 @@ def get_current_price_and_history():
         dt_utc = datetime.fromtimestamp(millis / 1000, tz=timezone.utc)
         dt_local = dt_utc.astimezone(ZoneInfo("America/Chicago"))
 
-        recent_prices = [float(d["price"]) for d in data[:12]]  # ~last 60 min
+        recent_prices = [float(d["price"]) for d in data[:12]]
         return price, dt_local, recent_prices
     except Exception as e:
         print(f"⚠️  Error fetching price: {e}")
@@ -125,6 +121,11 @@ def main():
     state = load_state()
     last_price = state.get("last_price", price)
 
+    # TEMPORARY: Force reset the below_10 flag so confirmation fires
+    if state.get("below_10_alert_sent", False):
+        print("Temporarily resetting below_10_alert_sent flag...")
+        state["below_10_alert_sent"] = False
+
     log_price(dt_local, price)
     print(f"  Current: {price:.2f}¢/kWh")
 
@@ -169,7 +170,7 @@ def main():
         )
         state["below_10_alert_sent"] = True
 
-    # === PERIODIC LOW-PRICE SUMMARY (every ~3 hours while below 10¢) ===
+    # === PERIODIC LOW-PRICE SUMMARY ===
     current_time = time.time()
     last_summary = state.get("last_low_summary_time", 0)
 
