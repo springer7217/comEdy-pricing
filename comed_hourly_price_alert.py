@@ -1,20 +1,17 @@
 #!/usr/bin/env python3
 """
-ComEd Hourly Price Alert Tool
-=============================
-Alerts you on meaningful price movements with ComEd's 5-minute Hourly Pricing.
+ComEd Hourly Price Alert Tool (comEdy-pricing)
+===============================================
 
-What it watches:
-- When prices drop to -0.01¢/kWh or below  → "ComEd is now paying you to use electricity!"
-- When prices rise back above +0.01¢/kWh after being negative
-- When prices spike above +8.0¢/kWh       → "High rates started!"
-- When prices drop back below +8.0¢/kWh after being high
+Alerts for:
+1. Negative prices (ComEd paying you) - enter and exit
+2. High price milestones every 10¢ (both upward and downward crossings)
+   Examples: Crosses 10¢, 20¢, 30¢... upward
+             Drops below 80¢, 70¢, 60¢... downward
 
-This gives you clean, useful notifications instead of constant spam while prices stay in one zone.
+Designed to run every 5 minutes via GitHub Actions.
 
-Designed to run on GitHub Actions (every 5 minutes) or locally with cron.
-
-See README.md for full setup.
+Notification via ntfy.sh (or Telegram).
 """
 
 import requests
@@ -24,13 +21,13 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 # ==================== CONFIGURATION ====================
-NEGATIVE_THRESHOLD = -0.01      # Enter "paid to use" territory
-EXIT_NEGATIVE_THRESHOLD = 0.01  # Must rise above this to exit negative mode
+# Negative pricing alerts (keep these!)
+NEGATIVE_THRESHOLD = -0.01
+EXIT_NEGATIVE_THRESHOLD = 0.01
 
-HIGH_THRESHOLD = 8.0            # Enter "high price" territory (updated to 8¢)
-EXIT_HIGH_THRESHOLD = 8.0       # Must fall below this to exit high mode
+# Milestone alerts for high prices (every 10 cents)
+MILESTONE_STEP = 10.0
 
-# These will automatically use GitHub Secrets when running in Actions.
 NTFY_TOPIC = os.getenv("NTFY_TOPIC") or ""
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN") or ""
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") or ""
@@ -40,7 +37,6 @@ LOG_FILE = "comed_price_log.txt"
 # =======================================================
 
 def get_current_price():
-    """Fetch latest 5-min price from ComEd."""
     url = "https://hourlypricing.comed.com/api?type=5minutefeed&format=json"
     try:
         resp = requests.get(url, timeout=15)
@@ -59,27 +55,22 @@ def get_current_price():
         return None, None
 
 
-def determine_zone(price):
-    """Return current zone: 'negative', 'high', or 'normal'."""
-    if price <= NEGATIVE_THRESHOLD:
-        return "negative"
-    elif price > HIGH_THRESHOLD:
-        return "high"
-    else:
-        return "normal"
+def get_milestone(price):
+    """Return the nearest lower 10¢ milestone (0 if below 10¢)."""
+    if price < MILESTONE_STEP:
+        return 0
+    return int(price // MILESTONE_STEP) * MILESTONE_STEP
 
 
 def send_notification(title, message, emoji="⚡"):
-    """Send alert via ntfy or Telegram (or print if none configured)."""
     full_msg = f"{emoji} {title}\n\n{message}"
-
     sent = False
 
     if NTFY_TOPIC:
         try:
             r = requests.post(f"https://ntfy.sh/{NTFY_TOPIC}", data=full_msg, timeout=10)
             if r.status_code == 200:
-                print("✅ Sent via ntfy.sh")
+                print("✅ Sent via ntfy")
                 sent = True
         except Exception as e:
             print(f"⚠️  ntfy error: {e}")
@@ -87,8 +78,7 @@ def send_notification(title, message, emoji="⚡"):
     if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID:
         try:
             tg_url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-            payload = {"chat_id": TELEGRAM_CHAT_ID, "text": full_msg}
-            r = requests.post(tg_url, json=payload, timeout=10)
+            r = requests.post(tg_url, json={"chat_id": TELEGRAM_CHAT_ID, "text": full_msg}, timeout=10)
             if r.status_code == 200:
                 print("✅ Sent via Telegram")
                 sent = True
@@ -96,9 +86,9 @@ def send_notification(title, message, emoji="⚡"):
             print(f"⚠️  Telegram error: {e}")
 
     if not sent:
-        print("\n" + "=" * 60)
+        print("\n" + "="*60)
         print(full_msg)
-        print("=" * 60 + "\n")
+        print("="*60 + "\n")
 
 
 def load_state():
@@ -106,24 +96,22 @@ def load_state():
         try:
             with open(STATE_FILE, "r") as f:
                 return json.load(f)
-        except Exception:
+        except:
             pass
-    return {"last_zone": "normal", "last_price": 0.0}
+    return {"last_price": 0.0, "last_milestone": 0}
 
 
 def save_state(state):
-    try:
-        with open(STATE_FILE, "w") as f:
-            json.dump(state, f, indent=2)
-    except Exception as e:
-        print(f"⚠️  Could not save state: {e}")
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f, indent=2)
+
 
 def log_price(dt_local, price, zone):
     try:
         with open(LOG_FILE, "a") as f:
-            f.write(f"{dt_local.isoformat()},{price:.2f},{zone}\n")
-    except Exception as e:
-        print(f"⚠️  Log error: {e}")
+            f.write(f"{dt_local.isoformat()},{price:.2f}\n")
+    except:
+        pass
 
 
 def main():
@@ -133,61 +121,65 @@ def main():
     if price is None:
         return
 
-    current_zone = determine_zone(price)
     state = load_state()
-    previous_zone = state.get("last_zone", "normal")
+    last_price = state.get("last_price", price)
+    last_milestone = state.get("last_milestone", 0)
 
-    log_price(dt_local, price, current_zone)
+    log_price(dt_local, price, "")
 
-    print(f"  Price: {price:.2f}¢/kWh → Zone: {current_zone} (was {previous_zone})")
+    print(f"  Current: {price:.2f}¢/kWh  |  Previous: {last_price:.2f}¢/kWh")
 
-    # === TRANSITION LOGIC ===
-    alert_sent = False
+    # === NEGATIVE PRICING ALERTS (keep these) ===
+    current_is_negative = price <= NEGATIVE_THRESHOLD
+    last_was_negative = last_price <= NEGATIVE_THRESHOLD
 
-    # 1. Entered NEGATIVE zone (ComEd paying you)
-    if previous_zone != "negative" and current_zone == "negative":
-        title = "ComEd is now PAYING you!"
-        msg = (f"Price dropped to {price:.2f}¢/kWh\n"
-               f"This is ≤ {NEGATIVE_THRESHOLD}¢ — they're paying you to use electricity right now.\n"
-               f"Time: {dt_local.strftime('%I:%M %p')}")
-        send_notification(title, msg, "💰")
-        alert_sent = True
+    if current_is_negative and not last_was_negative:
+        send_notification(
+            "ComEd is now PAYING you!",
+            f"Price dropped to {price:.2f}¢/kWh\n"
+            f"They're paying you to use electricity right now!\n"
+            f"Time: {dt_local.strftime('%I:%M %p')}",
+            "💰"
+        )
+    elif not current_is_negative and last_was_negative:
+        send_notification(
+            "Negative pricing ended",
+            f"Price rose to {price:.2f}¢/kWh\n"
+            f"No longer getting paid to use power.\n"
+            f"Time: {dt_local.strftime('%I:%M %p')}",
+            "✅"
+        )
 
-    # 2. Exited NEGATIVE zone (back above +0.01)
-    elif previous_zone == "negative" and current_zone != "negative":
-        title = "Negative pricing ended"
-        msg = (f"Price rose to {price:.2f}¢/kWh\n"
-               f"No longer in the 'paid to use' zone (now above {EXIT_NEGATIVE_THRESHOLD}¢).\n"
-               f"Time: {dt_local.strftime('%I:%M %p')}")
-        send_notification(title, msg, "✅")
-        alert_sent = True
+    # === 10¢ MILESTONE ALERTS (new high price tracking) ===
+    current_milestone = get_milestone(price)
+    last_milestone = get_milestone(last_price)
 
-    # 3. Entered HIGH zone (> 8.0¢)
-    elif previous_zone != "high" and current_zone == "high":
-        title = "High electricity rates started"
-        msg = (f"Price jumped to {price:.2f}¢/kWh\n"
-               f"Now above {HIGH_THRESHOLD}¢/kWh — expensive period.\n"
-               f"Time: {dt_local.strftime('%I:%M %p')}")
-        send_notification(title, msg, "🔥")
-        alert_sent = True
+    if current_milestone > last_milestone:
+        # Price crossed upward into a new 10¢ bracket
+        send_notification(
+            f"Price crossed {current_milestone}¢ upward",
+            f"Price is now {price:.1f}¢/kWh (was {last_price:.1f}¢)\n"
+            f"Crossed the {current_milestone}¢ milestone.\n"
+            f"Time: {dt_local.strftime('%I:%M %p')}",
+            "🔥"
+        )
+    elif current_milestone < last_milestone and last_milestone > 0:
+        # Price dropped below a previous 10¢ milestone
+        send_notification(
+            f"Price dropped below {last_milestone}¢",
+            f"Price is now {price:.1f}¢/kWh (was {last_price:.1f}¢)\n"
+            f"Dropped below the {last_milestone}¢ level.\n"
+            f"Time: {dt_local.strftime('%I:%M %p')}",
+            "📉"
+        )
 
-    # 4. Exited HIGH zone (dropped back below 8.0¢)
-    elif previous_zone == "high" and current_zone != "high":
-        title = "High rates ended"
-        msg = (f"Price dropped to {price:.2f}¢/kWh\n"
-               f"No longer above {EXIT_HIGH_THRESHOLD}¢.\n"
-               f"Time: {dt_local.strftime('%I:%M %p')}")
-        send_notification(title, msg, "📉")
-        alert_sent = True
-
-    # Update state
-    state["last_zone"] = current_zone
+    # Save state for next run
     state["last_price"] = price
+    state["last_milestone"] = current_milestone
     save_state(state)
 
-    if not alert_sent:
-        print("  No zone transition — no alert needed.")
-
+    if current_milestone == last_milestone:
+        print("  No milestone or negative transition — no alert sent.")
 
 if __name__ == "__main__":
     main()

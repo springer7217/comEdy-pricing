@@ -1,101 +1,34 @@
 # comedy-pricing ⚡
 
-**Alerts you when ComEd Hourly Pricing does something interesting.**
+**Smart alerts for ComEd Hourly Pricing spikes and negative prices.**
 
-Specifically:
-- **ComEd starts paying you** (price ≤ -0.01¢/kWh)
-- **Paid-to-use period ends** (price rises back above +0.01¢/kWh)
-- **High rates begin** (price > +8.0¢/kWh)
-- **High rates end** (price drops back below +8.0¢/kWh)
+### What it alerts on now:
 
-This gives you clean, actionable notifications instead of spam while prices stay in one zone.
+**1. Negative prices (ComEd paying you)**
+- When price drops to -0.01¢ or below
+- When price rises back above +0.01¢
 
-Perfect for:
-- Running EV chargers, pre-cooling the house, or doing laundry when ComEd is literally paying you
-- Knowing when expensive periods start and end so you can avoid them
+**2. High price milestones (every 10¢)**
+- Upward: Alerts when price crosses 10¢, 20¢, 30¢, 40¢...
+- Downward: Alerts when price drops below 80¢, 70¢, 60¢, 50¢...
 
-## How it works
+This is especially useful during extreme spikes (like the 87¢ we saw today).
 
-The script checks the public ComEd 5-minute pricing API and tracks **zone transitions**:
+## Current Thresholds
+- Negative alerts: ≤ -0.01¢ and exit above +0.01¢
+- High price milestones: Every 10¢ bracket
 
-| Zone       | Condition              | What happens |
-|------------|------------------------|--------------|
-| `negative` | ≤ -0.01¢/kWh           | "ComEd is now PAYING you!" |
-| `high`     | > +8.0¢/kWh           | "High electricity rates started" |
-| `normal`   | Everything else        | Quiet (unless transitioning) |
+## How to Run
+The tool runs automatically every 5 minutes via GitHub Actions.
 
-It only sends alerts when you **enter or exit** these zones.
+You can also trigger it manually from the Actions tab.
 
-## Project Structure
+## Notifications
+Currently using ntfy.sh (`comedy-alert-7x9k2p`).
 
-```
-comedy-pricing/
-├── comed_hourly_price_alert.py   # The brain
-├── README.md
-├── requirements.txt
-├── .gitignore
-├── comed_alert_state.json        # Auto-created (remembers last zone)
-└── comed_price_log.txt           # Auto-created (full price history)
-```
+## Files
+- `comed_hourly_price_alert.py` — Main logic
+- State is saved in `comed_alert_state.json`
+- Price history in `comed_price_log.txt`
 
-## Quick Setup
-
-### 1. Clone or download
-```bash
-git clone https://github.com/YOUR_USERNAME/comedy-pricing.git
-cd comedy-pricing
-```
-
-### 2. Install dependency
-```bash
-pip install -r requirements.txt
-```
-
-### 3. Configure notifications (choose one)
-
-**Easiest: ntfy.sh (free phone push)**
-- Pick a secret topic, e.g. `lee-comedy-alert-xyz123`
-- Install the free **ntfy** app on your phone and subscribe
-- Edit `comed_hourly_price_alert.py` and set:
-  ```python
-  NTFY_TOPIC = "lee-comedy-alert-xyz123"
-  ```
-
-**Alternative: Telegram**
-- Message `@BotFather` → `/newbot`
-- Copy the token and your chat ID
-- Fill in the two Telegram variables in the script
-
-### 4. Test it
-```bash
-python3 comed_hourly_price_alert.py
-```
-
-### 5. Run automatically (every 5 minutes)
-
-**GitHub Actions (recommended - free, no computer needed)**
-- Already set up in `.github/workflows/`
-- It runs automatically on a schedule
-
-**Or locally with cron (Linux/Mac/Pi):**
-```bash
-crontab -e
-```
-Add:
-```cron
-*/5 * * * * cd /path/to/comedy-pricing && python3 comed_hourly_price_alert.py
-```
-
-## Why "comedy-pricing"?
-
-Because negative electricity prices are objectively funny. ComEd is paying you to use power. We lean into the humor.
-
-## Future ideas (we can build these together)
-- A simple web dashboard showing current price + last 24h chart (hostable on Netlify)
-- Better historical graphs
-- Integration with Home Assistant or smart plugs
-- Daily/weekly summary emails
-
----
-
-Built with ❤️ and a healthy sense of humor about Illinois electricity prices.
+Built for Lee in Chicago area during crazy summer price spikes.
