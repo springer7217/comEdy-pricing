@@ -2,9 +2,8 @@ name: Comedy Pricing Check
 
 on:
   schedule:
-    # Run every 5 minutes
     - cron: '*/5 * * * *'
-  workflow_dispatch:   # Allow manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   check-price:
@@ -25,7 +24,14 @@ jobs:
       - name: Run price alert check
         run: python comed_hourly_price_alert.py
         env:
-          # Add any secrets here later if needed (e.g. for more advanced notifications)
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+
+      - name: Persist state file
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add comed_alert_state.json || true
+          git commit -m "Update price state [skip ci]" || exit 0
+          git push || true

@@ -6,12 +6,9 @@ ComEd Hourly Price Alert Tool (comEdy-pricing)
 Alerts for:
 1. Negative prices (ComEd paying you) - enter and exit
 2. High price milestones every 10¢ (both upward and downward crossings)
-   Examples: Crosses 10¢, 20¢, 30¢... upward
-             Drops below 80¢, 70¢, 60¢... downward
+   - Upward: Crosses 10¢, 20¢, 30¢...
+   - Downward: Drops below 80¢, 70¢, 60¢... (handles big drops too)
 
-Designed to run every 5 minutes via GitHub Actions.
-
-Notification via ntfy.sh (or Telegram).
 """
 
 import requests
@@ -21,11 +18,8 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 # ==================== CONFIGURATION ====================
-# Negative pricing alerts (keep these!)
 NEGATIVE_THRESHOLD = -0.01
 EXIT_NEGATIVE_THRESHOLD = 0.01
-
-# Milestone alerts for high prices (every 10 cents)
 MILESTONE_STEP = 10.0
 
 NTFY_TOPIC = os.getenv("NTFY_TOPIC") or ""
@@ -56,7 +50,6 @@ def get_current_price():
 
 
 def get_milestone(price):
-    """Return the nearest lower 10¢ milestone (0 if below 10¢)."""
     if price < MILESTONE_STEP:
         return 0
     return int(price // MILESTONE_STEP) * MILESTONE_STEP
@@ -106,7 +99,7 @@ def save_state(state):
         json.dump(state, f, indent=2)
 
 
-def log_price(dt_local, price, zone):
+def log_price(dt_local, price):
     try:
         with open(LOG_FILE, "a") as f:
             f.write(f"{dt_local.isoformat()},{price:.2f}\n")
@@ -125,61 +118,53 @@ def main():
     last_price = state.get("last_price", price)
     last_milestone = state.get("last_milestone", 0)
 
-    log_price(dt_local, price, "")
+    log_price(dt_local, price)
 
     print(f"  Current: {price:.2f}¢/kWh  |  Previous: {last_price:.2f}¢/kWh")
 
-    # === NEGATIVE PRICING ALERTS (keep these) ===
+    # === NEGATIVE PRICING ALERTS ===
     current_is_negative = price <= NEGATIVE_THRESHOLD
     last_was_negative = last_price <= NEGATIVE_THRESHOLD
 
     if current_is_negative and not last_was_negative:
         send_notification(
             "ComEd is now PAYING you!",
-            f"Price dropped to {price:.2f}¢/kWh\n"
-            f"They're paying you to use electricity right now!\n"
-            f"Time: {dt_local.strftime('%I:%M %p')}",
+            f"Price dropped to {price:.2f}¢/kWh\nThey're paying you to use electricity right now!\nTime: {dt_local.strftime('%I:%M %p')}",
             "💰"
         )
     elif not current_is_negative and last_was_negative:
         send_notification(
             "Negative pricing ended",
-            f"Price rose to {price:.2f}¢/kWh\n"
-            f"No longer getting paid to use power.\n"
-            f"Time: {dt_local.strftime('%I:%M %p')}",
+            f"Price rose to {price:.2f}¢/kWh\nNo longer getting paid to use power.\nTime: {dt_local.strftime('%I:%M %p')}",
             "✅"
         )
 
-    # === 10¢ MILESTONE ALERTS (new high price tracking) ===
+    # === 10¢ MILESTONE ALERTS (improved for big moves) ===
     current_milestone = get_milestone(price)
     last_milestone = get_milestone(last_price)
 
     if current_milestone > last_milestone:
-        # Price crossed upward into a new 10¢ bracket
-        send_notification(
-            f"Price crossed {current_milestone}¢ upward",
-            f"Price is now {price:.1f}¢/kWh (was {last_price:.1f}¢)\n"
-            f"Crossed the {current_milestone}¢ milestone.\n"
-            f"Time: {dt_local.strftime('%I:%M %p')}",
-            "🔥"
-        )
+        for m in range(last_milestone + 10, current_milestone + 1, 10):
+            send_notification(
+                f"Price crossed {m}¢ upward",
+                f"Price is now {price:.1f}¢/kWh\nCrossed the {m}¢ milestone.\nTime: {dt_local.strftime('%I:%M %p')}",
+                "🔥"
+            )
     elif current_milestone < last_milestone and last_milestone > 0:
-        # Price dropped below a previous 10¢ milestone
-        send_notification(
-            f"Price dropped below {last_milestone}¢",
-            f"Price is now {price:.1f}¢/kWh (was {last_price:.1f}¢)\n"
-            f"Dropped below the {last_milestone}¢ level.\n"
-            f"Time: {dt_local.strftime('%I:%M %p')}",
-            "📉"
-        )
+        for m in range(last_milestone, current_milestone, -10):
+            send_notification(
+                f"Price dropped below {m}¢",
+                f"Price is now {price:.1f}¢/kWh\nDropped below the {m}¢ level.\nTime: {dt_local.strftime('%I:%M %p')}",
+                "📉"
+            )
 
-    # Save state for next run
+    # Save state
     state["last_price"] = price
     state["last_milestone"] = current_milestone
     save_state(state)
 
     if current_milestone == last_milestone:
-        print("  No milestone or negative transition — no alert sent.")
+        print("  No milestone transition — no alert sent.")
 
 if __name__ == "__main__":
     main()
