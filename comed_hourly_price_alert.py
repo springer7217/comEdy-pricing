@@ -176,8 +176,9 @@ def main():
     if price < 10 and (current_time - last_summary > LOW_SUMMARY_COOLDOWN):
         send_notification(
             "Low price update",
-            f"Current price is still low: {price:.1f}¢/kWh\n(below 10¢)
-Time: {dt_local.strftime('%I:%M %p')}",
+            f"""Current price is still low: {price:.1f}¢/kWh
+(below 10¢)
+Time: {dt_local.strftime('%I:%M %p')}""",
             "📉"
         )
         state["last_low_summary_time"] = current_time
