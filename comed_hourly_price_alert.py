@@ -2,15 +2,17 @@
 """
 ComEd Hourly Price Alert Tool (comEdy-pricing)
 
-More reliable version:
-- High price 10¢ milestones now use recent API history (stateless for this part)
-- Still supports negative pricing alerts
-- Much less dependent on fragile state file commits
+Features:
+- 10¢ milestone alerts (history-based)
+- Negative pricing alerts
+- One-time "below 10¢" confirmation
+- Periodic low-price summary while below 10¢ (every ~3 hours)
 """
 
 import requests
 import json
 import os
+import time
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -24,10 +26,12 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID") or ""
 
 STATE_FILE = "comed_alert_state.json"
 LOG_FILE = "comed_price_log.txt"
+
+# Low-price summary cooldown (seconds)
+LOW_SUMMARY_COOLDOWN = 3 * 3600   # 3 hours
 # =======================================================
 
 def get_current_price_and_history():
-    """Returns (current_price, dt_local, list_of_recent_prices)"""
     url = "https://hourlypricing.comed.com/api?type=5minutefeed&format=json"
     try:
         resp = requests.get(url, timeout=15)
@@ -42,8 +46,7 @@ def get_current_price_and_history():
         dt_utc = datetime.fromtimestamp(millis / 1000, tz=timezone.utc)
         dt_local = dt_utc.astimezone(ZoneInfo("America/Chicago"))
 
-        # Take last ~60 minutes of data (~12 points)
-        recent_prices = [float(d["price"]) for d in data[:12]]
+        recent_prices = [float(d["price"]) for d in data[:12]]  # ~last 60 min
         return price, dt_local, recent_prices
     except Exception as e:
         print(f"⚠️  Error fetching price: {e}")
@@ -92,7 +95,11 @@ def load_state():
                 return json.load(f)
         except:
             pass
-    return {"last_price": 0.0}
+    return {
+        "last_price": 0.0,
+        "below_10_alert_sent": False,
+        "last_low_summary_time": 0
+    }
 
 
 def save_state(state):
@@ -121,7 +128,7 @@ def main():
     log_price(dt_local, price)
     print(f"  Current: {price:.2f}¢/kWh")
 
-    # === NEGATIVE PRICING ALERTS (kept simple) ===
+    # === NEGATIVE PRICING ALERTS ===
     current_is_negative = price <= NEGATIVE_THRESHOLD
     last_was_negative = last_price <= NEGATIVE_THRESHOLD
 
@@ -138,14 +145,13 @@ def main():
             "✅"
         )
 
-    # === HIGH PRICE 10¢ MILESTONES (now history-based) ===
+    # === 10¢ MILESTONE ALERTS (history-based) ===
     if recent_prices:
         max_recent = max(recent_prices)
         current_milestone = get_milestone(price)
         max_recent_milestone = get_milestone(max_recent)
 
         if current_milestone < max_recent_milestone:
-            # Send alert for each level crossed downward
             for m in range(max_recent_milestone, current_milestone, -10):
                 if m > 0:
                     send_notification(
@@ -154,7 +160,29 @@ def main():
                         "📉"
                     )
 
-    # Update simple state (mainly for negative alerts)
+    # === ONE-TIME BELOW 10¢ CONFIRMATION ===
+    if price < 10 and not state.get("below_10_alert_sent", False):
+        send_notification(
+            "Prices have dropped below 10¢",
+            f"Current price: {price:.1f}¢/kWh\nGood time to run larger appliances!\nTime: {dt_local.strftime('%I:%M %p')}",
+            "✅"
+        )
+        state["below_10_alert_sent"] = True
+
+    # === PERIODIC LOW-PRICE SUMMARY (every ~3 hours while below 10¢) ===
+    current_time = time.time()
+    last_summary = state.get("last_low_summary_time", 0)
+
+    if price < 10 and (current_time - last_summary > LOW_SUMMARY_COOLDOWN):
+        send_notification(
+            "Low price update",
+            f"Current price is still low: {price:.1f}¢/kWh\n(below 10¢)
+Time: {dt_local.strftime('%I:%M %p')}",
+            "📉"
+        )
+        state["last_low_summary_time"] = current_time
+
+    # Save state
     state["last_price"] = price
     save_state(state)
 
