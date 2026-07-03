@@ -257,9 +257,6 @@
         }
 
         function loadMore() {
-            // This function is called when Load More is clicked
-            // We need access to current filtered data
-            // For simplicity, we'll re-filter with current active hours
             const activeBtn = document.querySelector('.filter-btn.active');
             const hours = activeBtn ? parseInt(activeBtn.dataset.hours) : 24;
             
