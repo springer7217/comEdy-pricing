@@ -14,10 +14,39 @@
         .skeleton { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
         canvas { max-height: 240px !important; }
+        .pull-to-refresh {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #71717a;
+            font-size: 13px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .pull-to-refresh.active {
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
-    <div class="max-w-md mx-auto min-h-screen pb-10">
+    <div class="max-w-md mx-auto min-h-screen pb-10 relative">
+        <!-- Pull to Refresh Indicator -->
+        <div id="pull-indicator" class="pull-to-refresh">
+            <div class="flex items-center gap-2">
+                <svg id="refresh-icon" xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.058 11H1M12 3v2m0 16v2m9-9H15m-6 0a8.002 8.002 0 01-3.464-1.06" />
+                </svg>
+                <span id="pull-text">Pull to refresh</span>
+            </div>
+        </div>
+
         <!-- Header -->
         <div class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
             <div>
@@ -117,6 +146,11 @@
         const ITEMS_PER_PAGE = 20;
         let currentFilterHours = 24;
 
+        // Pull to refresh variables
+        let startY = 0;
+        let isPulling = false;
+        const PULL_THRESHOLD = 80;
+
         function getEmoji(price) {
             if (price <= 8.0) return '🟢';
             if (price <= 10.0) return '🟡';
@@ -159,7 +193,7 @@
                     return;
                 }
 
-                filterData(24, false);
+                filterData(currentFilterHours, false);
 
             } catch (err) {
                 console.error(err);
@@ -234,7 +268,6 @@
                 let rightContent;
 
                 if (isLongRange) {
-                    // 7d / 30d: Show full date + time with emoji
                     leftContent = `
                         <div class="flex items-center gap-3.5">
                             <span class="text-3xl">${getEmoji(p)}</span>
@@ -246,9 +279,8 @@
                             </div>
                         </div>
                     `;
-                    rightContent = ''; // No right column on long ranges
+                    rightContent = '';
                 } else {
-                    // Short ranges: Clean time on right
                     leftContent = `
                         <div class="flex items-center gap-3.5">
                             <span class="text-3xl">${getEmoji(p)}</span>
@@ -304,14 +336,6 @@
                         hour12: true 
                     });
                 });
-            } else if (hours <= 168) {
-                labels = data.slice().reverse().map(r => {
-                    const d = new Date(r.recorded_at);
-                    return d.toLocaleDateString([], { 
-                        month: 'short', 
-                        day: 'numeric' 
-                    });
-                });
             } else {
                 labels = data.slice().reverse().map(r => {
                     const d = new Date(r.recorded_at);
@@ -350,8 +374,78 @@
             });
         }
 
+        // ==================== PULL TO REFRESH ====================
+        function initPullToRefresh() {
+            const indicator = document.getElementById('pull-indicator');
+            const pullText = document.getElementById('pull-text');
+            const refreshIcon = document.getElementById('refresh-icon');
+            let currentPullDistance = 0;
+
+            document.addEventListener('touchstart', (e) => {
+                if (window.scrollY === 0) {
+                    startY = e.touches[0].clientY;
+                    isPulling = true;
+                    currentPullDistance = 0;
+                }
+            });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!isPulling) return;
+
+                const currentY = e.touches[0].clientY;
+                currentPullDistance = currentY - startY;
+
+                if (currentPullDistance > 0) {
+                    // Show indicator based on pull distance
+                    const progress = Math.min(currentPullDistance / PULL_THRESHOLD, 1);
+                    indicator.style.opacity = progress * 0.8;
+                    indicator.style.transform = `translateY(${Math.min(currentPullDistance * 0.5, 40)}px)`;
+
+                    if (currentPullDistance > PULL_THRESHOLD) {
+                        pullText.textContent = 'Release to refresh';
+                        refreshIcon.style.transform = 'rotate(180deg)';
+                    } else {
+                        pullText.textContent = 'Pull to refresh';
+                        refreshIcon.style.transform = 'rotate(0deg)';
+                    }
+                }
+            });
+
+            document.addEventListener('touchend', () => {
+                if (!isPulling) return;
+
+                if (currentPullDistance > PULL_THRESHOLD) {
+                    // Trigger refresh
+                    pullText.textContent = 'Refreshing...';
+                    refreshIcon.style.transform = 'rotate(0deg)';
+                    indicator.style.transition = 'opacity 0.3s ease';
+
+                    loadData(true).finally(() => {
+                        // Reset indicator
+                        setTimeout(() => {
+                            indicator.style.transition = 'opacity 0.2s ease';
+                            indicator.style.opacity = '0';
+                            indicator.style.transform = 'translateY(0)';
+                            pullText.textContent = 'Pull to refresh';
+                            refreshIcon.style.transform = 'rotate(0deg)';
+                        }, 300);
+                    });
+                } else {
+                    // Reset without refreshing
+                    indicator.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+                    indicator.style.opacity = '0';
+                    indicator.style.transform = 'translateY(0)';
+                }
+
+                isPulling = false;
+                currentPullDistance = 0;
+            });
+        }
+
+        // Init everything
         window.onload = () => {
             loadData();
+            initPullToRefresh();
             setInterval(() => loadData(false), 5 * 60 * 1000);
         };
     </script>
