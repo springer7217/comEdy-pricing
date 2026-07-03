@@ -84,7 +84,7 @@
                     <button onclick="filterData(24)" class="filter-btn active px-3 py-1 rounded-xl font-medium bg-white text-zinc-900" data-hours="24">24h</button>
                     <button onclick="filterData(168)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="168">7d</button>
                     <button onclick="filterData(720)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="720">30d</button>
-                </div>
+                </button>
             </div>
         </div>
 
@@ -211,7 +211,7 @@
             document.getElementById('high-price').innerHTML = high.toFixed(1) + '¢';
             document.getElementById('low-price').innerHTML = low.toFixed(1) + '¢';
 
-            updateChart(filtered);
+            updateChart(filtered, hours);
             displayedCount = ITEMS_PER_PAGE;
             renderRecentList(filtered);
         }
@@ -272,13 +272,24 @@
             renderRecentList(filtered);
         }
 
-        function updateChart(data) {
+        function updateChart(data, hours) {
             const ctx = document.getElementById('price-chart');
             if (chartInstance) chartInstance.destroy();
 
+            let labelFormat;
+            if (hours <= 24) {
+                labelFormat = { hour: 'numeric', minute: '2-digit' };
+            } else if (hours <= 168) {
+                // 7 days - show day + short date
+                labelFormat = { weekday: 'short', month: 'numeric', day: 'numeric' };
+            } else {
+                // 30 days - show month + day
+                labelFormat = { month: 'short', day: 'numeric' };
+            }
+
             const labels = data.slice().reverse().map(r => {
                 const d = new Date(r.recorded_at);
-                return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+                return d.toLocaleTimeString([], labelFormat);
             });
 
             const prices = data.slice().reverse().map(r => parseFloat(r.price));
@@ -302,7 +313,7 @@
                     maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } },
+                        x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 9 } } },
                         y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
                     }
                 }
