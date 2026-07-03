@@ -142,14 +142,9 @@
 
         let chartInstance = null;
         let allData = [];
-        let displayedCount = 20;
-        const ITEMS_PER_PAGE = 20;
+        let displayedCount = 5;           // Start with 5
+        const LOAD_MORE_AMOUNT = 10;      // Load 10 more each time
         let currentFilterHours = 24;
-
-        // Pull to refresh variables
-        let startY = 0;
-        let isPulling = false;
-        const PULL_THRESHOLD = 80;
 
         function getEmoji(price) {
             if (price <= 8.0) return '🟢';
@@ -186,7 +181,7 @@
                 if (!res.ok) throw new Error('Failed to fetch');
 
                 allData = await res.json();
-                displayedCount = ITEMS_PER_PAGE;
+                displayedCount = 5; // Reset to 5 when refreshing
 
                 if (allData.length === 0) {
                     document.getElementById('recent-list').innerHTML = '<div class="text-center py-8 text-zinc-500">No data yet</div>';
@@ -246,7 +241,7 @@
             document.getElementById('low-price').innerHTML = low.toFixed(1) + '¢';
 
             updateChart(filtered, hours);
-            displayedCount = ITEMS_PER_PAGE;
+            displayedCount = 5; // Reset to 5 when changing filter
             renderRecentList(filtered);
         }
 
@@ -317,7 +312,7 @@
                 return (now - recordTime) <= hoursInMs;
             });
 
-            displayedCount += ITEMS_PER_PAGE;
+            displayedCount += LOAD_MORE_AMOUNT; // Add 10 more
             renderRecentList(filtered);
         }
 
@@ -396,12 +391,11 @@
                 currentPullDistance = currentY - startY;
 
                 if (currentPullDistance > 0) {
-                    // Show indicator based on pull distance
-                    const progress = Math.min(currentPullDistance / PULL_THRESHOLD, 1);
+                    const progress = Math.min(currentPullDistance / 80, 1);
                     indicator.style.opacity = progress * 0.8;
                     indicator.style.transform = `translateY(${Math.min(currentPullDistance * 0.5, 40)}px)`;
 
-                    if (currentPullDistance > PULL_THRESHOLD) {
+                    if (currentPullDistance > 80) {
                         pullText.textContent = 'Release to refresh';
                         refreshIcon.style.transform = 'rotate(180deg)';
                     } else {
@@ -414,14 +408,12 @@
             document.addEventListener('touchend', () => {
                 if (!isPulling) return;
 
-                if (currentPullDistance > PULL_THRESHOLD) {
-                    // Trigger refresh
+                if (currentPullDistance > 80) {
                     pullText.textContent = 'Refreshing...';
                     refreshIcon.style.transform = 'rotate(0deg)';
                     indicator.style.transition = 'opacity 0.3s ease';
 
                     loadData(true).finally(() => {
-                        // Reset indicator
                         setTimeout(() => {
                             indicator.style.transition = 'opacity 0.2s ease';
                             indicator.style.opacity = '0';
@@ -431,7 +423,6 @@
                         }, 300);
                     });
                 } else {
-                    // Reset without refreshing
                     indicator.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
                     indicator.style.opacity = '0';
                     indicator.style.transform = 'translateY(0)';
@@ -442,7 +433,6 @@
             });
         }
 
-        // Init everything
         window.onload = () => {
             loadData();
             initPullToRefresh();
