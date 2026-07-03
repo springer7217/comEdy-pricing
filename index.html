@@ -7,72 +7,87 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="manifest" href="manifest.json">
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; }
-        .price-card { transition: transform 0.2s ease; }
-        .price-card:active { transform: scale(0.98); }
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        .glass { background: rgba(39, 39, 42, 0.8); backdrop-filter: blur(20px); }
+        .price-value { font-variant-numeric: tabular-nums; }
+        .skeleton { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
-    <div class="max-w-md mx-auto min-h-screen">
+    <div class="max-w-md mx-auto min-h-screen pb-8">
         <!-- Header -->
-        <div class="px-6 pt-8 pb-4 flex items-center justify-between">
+        <div class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
             <div>
-                <h1 class="text-3xl font-semibold tracking-tight">ComEd Pricing</h1>
-                <p class="text-zinc-400 text-sm">Live + Historical</p>
+                <h1 class="text-2xl font-semibold tracking-tight">ComEd</h1>
+                <p class="text-[10px] text-zinc-500 -mt-0.5">ELECTRICITY PRICING</p>
             </div>
-            <button onclick="loadData()" 
-                    class="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium flex items-center gap-2 transition-colors">
+            <button onclick="loadData(true)" 
+                    class="flex items-center gap-2 px-4 h-9 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 transition-colors rounded-2xl text-sm font-medium border border-zinc-800">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.058 11H1M12 3v2m0 16v2m9-9H15m-6 0a8.002 8.002 0 01-3.464-1.06" />
+                </svg>
                 <span>Refresh</span>
             </button>
         </div>
 
         <!-- Current Price -->
-        <div class="px-6">
-            <div id="current-price-card" 
-                 class="bg-zinc-900 border border-zinc-800 rounded-3xl p-6 price-card">
-                <div class="flex items-center justify-between">
+        <div class="px-6 pt-6">
+            <div id="current-card" class="glass border border-zinc-800 rounded-3xl p-6">
+                <div class="flex justify-between items-start">
                     <div>
-                        <p class="text-zinc-400 text-sm font-medium">CURRENT PRICE</p>
-                        <div id="current-price" class="text-6xl font-semibold tracking-tighter mt-1">--</div>
-                        <p id="current-time" class="text-zinc-500 text-sm mt-1">Loading...</p>
+                        <div class="text-xs tracking-[1px] text-zinc-400 font-medium">NOW</div>
+                        <div id="current-price" class="text-[64px] leading-none font-semibold tracking-[-3.5px] mt-2 price-value">--</div>
+                        <div id="current-time" class="text-sm text-zinc-500 mt-1">Loading latest price...</div>
                     </div>
-                    <div id="current-emoji" class="text-7xl">⏳</div>
+                    <div id="current-emoji" class="text-[72px] mt-1 transition-transform">⏳</div>
                 </div>
             </div>
         </div>
 
-        <!-- Stats -->
+        <!-- 24h Stats -->
         <div class="px-6 mt-6">
-            <h2 class="text-sm font-semibold text-zinc-400 px-1 mb-3">LAST 24 HOURS</h2>
-            <div class="grid grid-cols-3 gap-3">
-                <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-                    <div class="text-emerald-400 text-xs font-medium">AVERAGE</div>
-                    <div id="avg-price" class="text-3xl font-semibold mt-1">--</div>
-                </div>
-                <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-                    <div class="text-red-400 text-xs font-medium">HIGH</div>
-                    <div id="high-price" class="text-3xl font-semibold mt-1">--</div>
-                </div>
-                <div class="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-                    <div class="text-blue-400 text-xs font-medium">LOW</div>
-                    <div id="low-price" class="text-3xl font-semibold mt-1">--</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Prices -->
-        <div class="px-6 mt-8">
             <div class="flex items-center justify-between px-1 mb-3">
-                <h2 class="text-sm font-semibold text-zinc-400">RECENT READINGS</h2>
-                <span id="reading-count" class="text-xs text-zinc-500"></span>
+                <div class="text-xs uppercase tracking-widest text-zinc-400 font-medium">Last 24 Hours</div>
             </div>
             
-            <div id="recent-list" class="space-y-2">
-                <!-- Populated by JavaScript -->
+            <div class="grid grid-cols-3 gap-3">
+                <!-- Average -->
+                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                    <div class="text-emerald-400 text-[10px] font-semibold tracking-wider">AVG</div>
+                    <div id="avg-price" class="text-4xl font-semibold tracking-tight mt-1 price-value">--</div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">per kWh</div>
+                </div>
+                
+                <!-- High -->
+                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                    <div class="text-red-400 text-[10px] font-semibold tracking-wider">HIGH</div>
+                    <div id="high-price" class="text-4xl font-semibold tracking-tight mt-1 price-value">--</div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">per kWh</div>
+                </div>
+                
+                <!-- Low -->
+                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                    <div class="text-sky-400 text-[10px] font-semibold tracking-wider">LOW</div>
+                    <div id="low-price" class="text-4xl font-semibold tracking-tight mt-1 price-value">--</div>
+                    <div class="text-[10px] text-zinc-500 mt-0.5">per kWh</div>
+                </div>
             </div>
         </div>
 
-        <div class="h-20"></div>
+        <!-- Recent Readings -->
+        <div class="px-6 mt-8">
+            <div class="flex items-baseline justify-between px-1 mb-3">
+                <div>
+                    <span class="text-sm font-semibold">Recent Readings</span>
+                </div>
+                <span id="reading-count" class="text-xs text-zinc-500"></span>
+            </div>
+
+            <div id="recent-list" class="space-y-[6px]">
+                <!-- Populated dynamically -->
+            </div>
+        </div>
     </div>
 
     <script>
@@ -85,47 +100,61 @@
             return '🔴';
         }
 
-        async function loadData() {
-            const recentList = document.getElementById('recent-list');
-            recentList.innerHTML = '<div class="text-center py-8 text-zinc-500">Loading...</div>';
+        function showSkeleton() {
+            document.getElementById('current-price').innerHTML = '<div class="h-16 w-40 bg-zinc-800 rounded-2xl skeleton"></div>';
+            document.getElementById('current-emoji').innerHTML = '⏳';
+            document.getElementById('avg-price').innerHTML = '--';
+            document.getElementById('high-price').innerHTML = '--';
+            document.getElementById('low-price').innerHTML = '--';
+            document.getElementById('recent-list').innerHTML = 
+                '<div class="space-y-2">' + 
+                Array(6).fill(0).map(() => 
+                    `<div class="h-14 bg-zinc-900 border border-zinc-800 rounded-2xl skeleton"></div>`
+                ).join('') + 
+                '</div>';
+        }
+
+        async function loadData(showLoading = true) {
+            if (showLoading) showSkeleton();
 
             try {
-                // Fetch last 100 records
-                const response = await fetch(
-                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=100`,
+                const res = await fetch(
+                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=120`,
                     {
                         headers: {
-                            'apikey': SUPABASE_ANON_KEY,
-                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+                            apikey: SUPABASE_ANON_KEY,
+                            Authorization: `Bearer ${SUPABASE_ANON_KEY}`
                         }
                     }
                 );
 
-                if (!response.ok) throw new Error('Failed to fetch data');
+                if (!res.ok) throw new Error('Failed to load data');
 
-                const data = await response.json();
+                const data = await res.json();
 
-                if (data.length === 0) {
-                    recentList.innerHTML = '<div class="text-center py-8 text-zinc-500">No data yet</div>';
+                if (!data.length) {
+                    document.getElementById('recent-list').innerHTML = 
+                        '<div class="text-center py-10 text-zinc-500 text-sm">No data available yet</div>';
                     return;
                 }
 
-                // Current price
+                // === Current Price ===
                 const latest = data[0];
-                const latestPrice = parseFloat(latest.price);
+                const price = parseFloat(latest.price);
                 
-                document.getElementById('current-price').innerHTML = `${latestPrice.toFixed(1)}<span class="text-3xl font-normal">¢</span>`;
-                document.getElementById('current-emoji').innerHTML = getEmoji(latestPrice);
+                document.getElementById('current-price').innerHTML = 
+                    `${price.toFixed(1)}<span class="text-4xl font-normal align-super">¢</span>`;
+                document.getElementById('current-emoji').innerHTML = getEmoji(price);
                 
-                const recordedDate = new Date(latest.recorded_at);
+                const recorded = new Date(latest.recorded_at);
                 document.getElementById('current-time').innerHTML = 
-                    `as of ${recordedDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+                    `Updated ${recorded.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 
-                // Calculate 24h stats (last ~144 records = 24 hours at 10min intervals)
+                // === 24h Stats ===
                 const last24h = data.slice(0, 144);
                 const prices = last24h.map(r => parseFloat(r.price));
                 
-                const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+                const avg = prices.reduce((sum, p) => sum + p, 0) / prices.length;
                 const high = Math.max(...prices);
                 const low = Math.min(...prices);
 
@@ -133,42 +162,79 @@
                 document.getElementById('high-price').innerHTML = high.toFixed(1) + '¢';
                 document.getElementById('low-price').innerHTML = low.toFixed(1) + '¢';
 
-                // Recent readings list
-                recentList.innerHTML = '';
-                data.slice(0, 25).forEach(record => {
-                    const price = parseFloat(record.price);
-                    const time = new Date(record.recorded_at);
+                // === Recent List ===
+                const container = document.getElementById('recent-list');
+                container.innerHTML = '';
+
+                data.slice(0, 30).forEach(row => {
+                    const p = parseFloat(row.price);
+                    const time = new Date(row.recorded_at);
                     
-                    const div = document.createElement('div');
-                    div.className = 'flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3';
-                    div.innerHTML = `
-                        <div class="flex items-center gap-3">
-                            <span class="text-2xl">${getEmoji(price)}</span>
+                    const el = document.createElement('div');
+                    el.className = `flex items-center justify-between px-4 py-[14px] bg-zinc-900/70 border border-zinc-800 rounded-2xl`;
+                    
+                    el.innerHTML = `
+                        <div class="flex items-center gap-3.5">
+                            <span class="text-3xl">${getEmoji(p)}</span>
                             <div>
-                                <div class="font-semibold">${price.toFixed(1)}¢</div>
-                                <div class="text-xs text-zinc-500">${time.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} ${time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+                                <div class="font-semibold text-xl tracking-tight price-value">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
+                                <div class="text-[10px] text-zinc-500 -mt-0.5">
+                                    ${time.toLocaleDateString([], {month:'short', day:'numeric'})} · ${time.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}
+                                </div>
                             </div>
                         </div>
-                        <div class="text-right">
-                            <div class="text-xs text-zinc-500">${time.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}</div>
+                        <div class="text-right text-xs text-zinc-400 font-mono">
+                            ${time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} 
                         </div>
                     `;
-                    recentList.appendChild(div);
+                    container.appendChild(el);
                 });
 
-                document.getElementById('reading-count').innerHTML = `${data.length} readings`;
+                document.getElementById('reading-count').innerHTML = `${data.length} total readings`;
 
-            } catch (error) {
-                console.error(error);
-                recentList.innerHTML = `<div class="text-center py-8 text-red-400">Error loading data</div>`;
+            } catch (err) {
+                console.error(err);
+                document.getElementById('recent-list').innerHTML = 
+                    `<div class="text-center py-8 text-red-400 text-sm">Failed to load data. Pull to refresh.</div>`;
             }
         }
 
-        // Load data on page load
-        window.onload = loadData;
+        // Simple pull-to-refresh for mobile
+        let startY = 0;
+        let isPulling = false;
 
-        // Optional: Auto refresh every 5 minutes
-        setInterval(loadData, 5 * 60 * 1000);
+        function initPullToRefresh() {
+            const container = document.body;
+
+            container.addEventListener('touchstart', (e) => {
+                if (window.scrollY === 0) {
+                    startY = e.touches[0].clientY;
+                    isPulling = true;
+                }
+            });
+
+            container.addEventListener('touchmove', (e) => {
+                if (!isPulling) return;
+                const currentY = e.touches[0].clientY;
+                if (currentY - startY > 80) {
+                    isPulling = false;
+                    loadData(true);
+                }
+            });
+
+            container.addEventListener('touchend', () => {
+                isPulling = false;
+            });
+        }
+
+        // Init
+        window.onload = () => {
+            loadData();
+            initPullToRefresh();
+
+            // Auto refresh every 5 minutes
+            setInterval(() => loadData(false), 5 * 60 * 1000);
+        };
     </script>
 </body>
 </html>
