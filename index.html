@@ -56,15 +56,15 @@
             <div class="grid grid-cols-3 gap-3 mb-4">
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-emerald-400 text-[10px] font-semibold tracking-wider">AVG</div>
-                    <div id="avg-price" class="text-4xl font-semibold tracking-tight mt-1 price-value">--</div>
+                    <div id="avg-price" class="text-3xl sm:text-4xl font-semibold tracking-tight mt-1 price-value break-all">--</div>
                 </div>
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-red-400 text-[10px] font-semibold tracking-wider">HIGH</div>
-                    <div id="high-price" class="text-4xl font-semibold tracking-tight mt-1 price-value">--</div>
+                    <div id="high-price" class="text-3xl sm:text-4xl font-semibold tracking-tight mt-1 price-value break-all">--</div>
                 </div>
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-sky-400 text-[10px] font-semibold tracking-wider">LOW</div>
-                    <div id="low-price" class="text-4xl font-semibold tracking-tight mt-1 price-value">--</div>
+                    <div id="low-price" class="text-3xl sm:text-4xl font-semibold tracking-tight mt-1 price-value break-all">--</div>
                 </div>
             </div>
 
@@ -78,15 +78,15 @@
         <div class="px-6 mt-6">
             <div class="flex items-center gap-2 px-1 mb-3">
                 <span class="text-xs uppercase tracking-widest text-zinc-400 font-medium">Show</span>
-                <div class="flex bg-zinc-900 border border-zinc-800 rounded-2xl p-1">
-                    <button onclick="filterData(6)" class="filter-btn px-3 py-1 text-xs rounded-xl font-medium" data-hours="6">6h</button>
-                    <button onclick="filterData(12)" class="filter-btn px-3 py-1 text-xs rounded-xl font-medium" data-hours="12">12h</button>
-                    <button onclick="filterData(24)" class="filter-btn active px-3 py-1 text-xs rounded-xl font-medium bg-white text-zinc-900" data-hours="24">24h</button>
+                <div class="flex bg-zinc-900 border border-zinc-800 rounded-2xl p-1 text-sm">
+                    <button onclick="filterData(6)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="6">6h</button>
+                    <button onclick="filterData(12)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="12">12h</button>
+                    <button onclick="filterData(24)" class="filter-btn active px-3 py-1 rounded-xl font-medium bg-white text-zinc-900" data-hours="24">24h</button>
                 </button>
             </div>
         </div>
 
-        <!-- Recent Readings -->
+        <!-- Recent Readings with Pagination -->
         <div class="px-6 mt-2">
             <div class="flex items-baseline justify-between px-1 mb-3">
                 <span class="text-sm font-semibold">Recent Readings</span>
@@ -96,6 +96,12 @@
             <div id="recent-list" class="space-y-[6px]">
                 <!-- Populated by JS -->
             </div>
+
+            <button id="load-more-btn" 
+                    onclick="loadMore()"
+                    class="mt-4 w-full py-3 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 border border-zinc-800 rounded-2xl text-sm font-medium hidden">
+                Load More
+            </button>
         </div>
     </div>
 
@@ -105,6 +111,8 @@
 
         let chartInstance = null;
         let allData = [];
+        let displayedCount = 20;
+        const ITEMS_PER_PAGE = 20;
 
         function getEmoji(price) {
             if (price <= 8.0) return '🟢';
@@ -119,8 +127,9 @@
             document.getElementById('high-price').innerHTML = '--';
             document.getElementById('low-price').innerHTML = '--';
             document.getElementById('recent-list').innerHTML = 
-                '<div class="space-y-2">' + Array(5).fill(0).map(() => 
+                '<div class="space-y-2">' + Array(6).fill(0).map(() => 
                     `<div class="h-14 bg-zinc-900 border border-zinc-800 rounded-2xl skeleton"></div>`).join('') + '</div>';
+            document.getElementById('load-more-btn').classList.add('hidden');
         }
 
         async function loadData(showLoading = true) {
@@ -128,7 +137,7 @@
 
             try {
                 const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=200`,
+                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=300`,
                     {
                         headers: {
                             apikey: SUPABASE_ANON_KEY,
@@ -140,13 +149,13 @@
                 if (!res.ok) throw new Error('Failed to fetch');
 
                 allData = await res.json();
+                displayedCount = ITEMS_PER_PAGE;
 
                 if (allData.length === 0) {
                     document.getElementById('recent-list').innerHTML = '<div class="text-center py-8 text-zinc-500">No data yet</div>';
                     return;
                 }
 
-                // Show default 24h view
                 filterData(24, false);
 
             } catch (err) {
@@ -158,7 +167,6 @@
         function filterData(hours, updateActive = true) {
             if (!allData.length) return;
 
-            // Update active button
             if (updateActive) {
                 document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active', 'bg-white', 'text-zinc-900'));
                 const activeBtn = document.querySelector(`.filter-btn[data-hours="${hours}"]`);
@@ -174,10 +182,11 @@
 
             if (filtered.length === 0) {
                 document.getElementById('recent-list').innerHTML = '<div class="text-center py-6 text-zinc-500 text-sm">No data in this time range</div>';
+                document.getElementById('load-more-btn').classList.add('hidden');
                 return;
             }
 
-            // Update current price (always latest overall)
+            // Update current price
             const latest = allData[0];
             const price = parseFloat(latest.price);
             document.getElementById('current-price').innerHTML = 
@@ -188,7 +197,7 @@
             document.getElementById('current-time').innerHTML = 
                 `Updated ${recorded.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 
-            // Stats for filtered data
+            // Stats
             const prices = filtered.map(r => parseFloat(r.price));
             const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
             const high = Math.max(...prices);
@@ -201,11 +210,18 @@
             // Update chart
             updateChart(filtered);
 
-            // Update recent list (show up to 25)
+            // Reset pagination and render first page
+            displayedCount = ITEMS_PER_PAGE;
+            renderRecentList(filtered);
+        }
+
+        function renderRecentList(filteredData) {
             const container = document.getElementById('recent-list');
             container.innerHTML = '';
 
-            filtered.slice(0, 25).forEach(row => {
+            const toShow = filteredData.slice(0, displayedCount);
+
+            toShow.forEach(row => {
                 const p = parseFloat(row.price);
                 const time = new Date(row.recorded_at);
                 
@@ -229,12 +245,37 @@
                 container.appendChild(el);
             });
 
-            document.getElementById('reading-count').innerHTML = `${filtered.length} readings`;
+            // Show/hide Load More button
+            const loadMoreBtn = document.getElementById('load-more-btn');
+            if (filteredData.length > displayedCount) {
+                loadMoreBtn.classList.remove('hidden');
+            } else {
+                loadMoreBtn.classList.add('hidden');
+            }
+
+            document.getElementById('reading-count').innerHTML = `${filteredData.length} readings`;
+        }
+
+        function loadMore() {
+            // This function is called when Load More is clicked
+            // We need access to current filtered data
+            // For simplicity, we'll re-filter with current active hours
+            const activeBtn = document.querySelector('.filter-btn.active');
+            const hours = activeBtn ? parseInt(activeBtn.dataset.hours) : 24;
+            
+            const hoursInMs = hours * 60 * 60 * 1000;
+            const now = new Date();
+            const filtered = allData.filter(row => {
+                const recordTime = new Date(row.recorded_at);
+                return (now - recordTime) <= hoursInMs;
+            });
+
+            displayedCount += ITEMS_PER_PAGE;
+            renderRecentList(filtered);
         }
 
         function updateChart(data) {
             const ctx = document.getElementById('price-chart');
-            
             if (chartInstance) chartInstance.destroy();
 
             const labels = data.slice().reverse().map(r => {
@@ -270,33 +311,8 @@
             });
         }
 
-        // Simple install prompt for PWA
-        function showInstallPrompt() {
-            if (window.matchMedia('(display-mode: standalone)').matches) return;
-
-            const btn = document.createElement('button');
-            btn.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 bg-white text-zinc-900 px-5 py-2.5 rounded-2xl text-sm font-semibold shadow-lg flex items-center gap-2 z-50';
-            btn.innerHTML = `📱 Install on Home Screen`;
-            
-            btn.onclick = () => {
-                btn.remove();
-                alert('On iPhone: Tap the Share button → "Add to Home Screen"');
-            };
-
-            document.body.appendChild(btn);
-
-            // Auto hide after 12 seconds
-            setTimeout(() => btn.remove(), 12000);
-        }
-
-        // Init
         window.onload = () => {
             loadData();
-
-            // Show install prompt after 8 seconds
-            setTimeout(showInstallPrompt, 8000);
-
-            // Background refresh
             setInterval(() => loadData(false), 5 * 60 * 1000);
         };
     </script>
