@@ -2,7 +2,7 @@ name: Comedy Pricing Check
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # Every 10 minutes
+    - cron: '*/10 * * * *'
   workflow_dispatch:
 
 jobs:
@@ -25,3 +25,5 @@ jobs:
         run: python comed_hourly_price_alert.py
         env:
           NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
