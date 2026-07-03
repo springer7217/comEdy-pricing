@@ -5,17 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ComEd Pricing</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="manifest" href="manifest.json">
     <style>
         body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
-        .glass { background: rgba(39, 39, 42, 0.8); backdrop-filter: blur(20px); }
+        .glass { background: rgba(39, 39, 42, 0.85); backdrop-filter: blur(20px); }
         .price-value { font-variant-numeric: tabular-nums; }
         .skeleton { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
+        canvas { max-height: 220px !important; }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
-    <div class="max-w-md mx-auto min-h-screen pb-8">
+    <div class="max-w-md mx-auto min-h-screen pb-10">
         <!-- Header -->
         <div class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
             <div>
@@ -45,47 +47,54 @@
             </div>
         </div>
 
-        <!-- 24h Stats -->
+        <!-- 24h Stats + Chart -->
         <div class="px-6 mt-6">
             <div class="flex items-center justify-between px-1 mb-3">
                 <div class="text-xs uppercase tracking-widest text-zinc-400 font-medium">Last 24 Hours</div>
             </div>
             
-            <div class="grid grid-cols-3 gap-3">
-                <!-- Average -->
+            <div class="grid grid-cols-3 gap-3 mb-4">
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-emerald-400 text-[10px] font-semibold tracking-wider">AVG</div>
                     <div id="avg-price" class="text-4xl font-semibold tracking-tight mt-1 price-value">--</div>
-                    <div class="text-[10px] text-zinc-500 mt-0.5">per kWh</div>
                 </div>
-                
-                <!-- High -->
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-red-400 text-[10px] font-semibold tracking-wider">HIGH</div>
                     <div id="high-price" class="text-4xl font-semibold tracking-tight mt-1 price-value">--</div>
-                    <div class="text-[10px] text-zinc-500 mt-0.5">per kWh</div>
                 </div>
-                
-                <!-- Low -->
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-sky-400 text-[10px] font-semibold tracking-wider">LOW</div>
                     <div id="low-price" class="text-4xl font-semibold tracking-tight mt-1 price-value">--</div>
-                    <div class="text-[10px] text-zinc-500 mt-0.5">per kWh</div>
                 </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="glass border border-zinc-800 rounded-2xl p-4">
+                <canvas id="price-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Time Filter -->
+        <div class="px-6 mt-6">
+            <div class="flex items-center gap-2 px-1 mb-3">
+                <span class="text-xs uppercase tracking-widest text-zinc-400 font-medium">Show</span>
+                <div class="flex bg-zinc-900 border border-zinc-800 rounded-2xl p-1">
+                    <button onclick="filterData(6)" class="filter-btn px-3 py-1 text-xs rounded-xl font-medium" data-hours="6">6h</button>
+                    <button onclick="filterData(12)" class="filter-btn px-3 py-1 text-xs rounded-xl font-medium" data-hours="12">12h</button>
+                    <button onclick="filterData(24)" class="filter-btn active px-3 py-1 text-xs rounded-xl font-medium bg-white text-zinc-900" data-hours="24">24h</button>
+                </button>
             </div>
         </div>
 
         <!-- Recent Readings -->
-        <div class="px-6 mt-8">
+        <div class="px-6 mt-2">
             <div class="flex items-baseline justify-between px-1 mb-3">
-                <div>
-                    <span class="text-sm font-semibold">Recent Readings</span>
-                </div>
+                <span class="text-sm font-semibold">Recent Readings</span>
                 <span id="reading-count" class="text-xs text-zinc-500"></span>
             </div>
 
             <div id="recent-list" class="space-y-[6px]">
-                <!-- Populated dynamically -->
+                <!-- Populated by JS -->
             </div>
         </div>
     </div>
@@ -94,6 +103,9 @@
         const SUPABASE_URL = 'https://qgasjpfbzjqlheexlouw.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYXNqcGZiempxbGhlZXhsb3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMzc2OTgsImV4cCI6MjA5ODYxMzY5OH0.cdZFeiMTV8zoQxgXI9-mLWNxmj9-r2eVoRZt9vfyaSk';
 
+        let chartInstance = null;
+        let allData = [];
+
         function getEmoji(price) {
             if (price <= 8.0) return '🟢';
             if (price <= 10.0) return '🟡';
@@ -101,17 +113,14 @@
         }
 
         function showSkeleton() {
-            document.getElementById('current-price').innerHTML = '<div class="h-16 w-40 bg-zinc-800 rounded-2xl skeleton"></div>';
+            document.getElementById('current-price').innerHTML = '<div class="h-16 w-44 bg-zinc-800 rounded-2xl skeleton"></div>';
             document.getElementById('current-emoji').innerHTML = '⏳';
             document.getElementById('avg-price').innerHTML = '--';
             document.getElementById('high-price').innerHTML = '--';
             document.getElementById('low-price').innerHTML = '--';
             document.getElementById('recent-list').innerHTML = 
-                '<div class="space-y-2">' + 
-                Array(6).fill(0).map(() => 
-                    `<div class="h-14 bg-zinc-900 border border-zinc-800 rounded-2xl skeleton"></div>`
-                ).join('') + 
-                '</div>';
+                '<div class="space-y-2">' + Array(5).fill(0).map(() => 
+                    `<div class="h-14 bg-zinc-900 border border-zinc-800 rounded-2xl skeleton"></div>`).join('') + '</div>';
         }
 
         async function loadData(showLoading = true) {
@@ -119,7 +128,7 @@
 
             try {
                 const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=120`,
+                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=200`,
                     {
                         headers: {
                             apikey: SUPABASE_ANON_KEY,
@@ -128,111 +137,166 @@
                     }
                 );
 
-                if (!res.ok) throw new Error('Failed to load data');
+                if (!res.ok) throw new Error('Failed to fetch');
 
-                const data = await res.json();
+                allData = await res.json();
 
-                if (!data.length) {
-                    document.getElementById('recent-list').innerHTML = 
-                        '<div class="text-center py-10 text-zinc-500 text-sm">No data available yet</div>';
+                if (allData.length === 0) {
+                    document.getElementById('recent-list').innerHTML = '<div class="text-center py-8 text-zinc-500">No data yet</div>';
                     return;
                 }
 
-                // === Current Price ===
-                const latest = data[0];
-                const price = parseFloat(latest.price);
-                
-                document.getElementById('current-price').innerHTML = 
-                    `${price.toFixed(1)}<span class="text-4xl font-normal align-super">¢</span>`;
-                document.getElementById('current-emoji').innerHTML = getEmoji(price);
-                
-                const recorded = new Date(latest.recorded_at);
-                document.getElementById('current-time').innerHTML = 
-                    `Updated ${recorded.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
-
-                // === 24h Stats ===
-                const last24h = data.slice(0, 144);
-                const prices = last24h.map(r => parseFloat(r.price));
-                
-                const avg = prices.reduce((sum, p) => sum + p, 0) / prices.length;
-                const high = Math.max(...prices);
-                const low = Math.min(...prices);
-
-                document.getElementById('avg-price').innerHTML = avg.toFixed(1) + '¢';
-                document.getElementById('high-price').innerHTML = high.toFixed(1) + '¢';
-                document.getElementById('low-price').innerHTML = low.toFixed(1) + '¢';
-
-                // === Recent List ===
-                const container = document.getElementById('recent-list');
-                container.innerHTML = '';
-
-                data.slice(0, 30).forEach(row => {
-                    const p = parseFloat(row.price);
-                    const time = new Date(row.recorded_at);
-                    
-                    const el = document.createElement('div');
-                    el.className = `flex items-center justify-between px-4 py-[14px] bg-zinc-900/70 border border-zinc-800 rounded-2xl`;
-                    
-                    el.innerHTML = `
-                        <div class="flex items-center gap-3.5">
-                            <span class="text-3xl">${getEmoji(p)}</span>
-                            <div>
-                                <div class="font-semibold text-xl tracking-tight price-value">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
-                                <div class="text-[10px] text-zinc-500 -mt-0.5">
-                                    ${time.toLocaleDateString([], {month:'short', day:'numeric'})} · ${time.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-right text-xs text-zinc-400 font-mono">
-                            ${time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})} 
-                        </div>
-                    `;
-                    container.appendChild(el);
-                });
-
-                document.getElementById('reading-count').innerHTML = `${data.length} total readings`;
+                // Show default 24h view
+                filterData(24, false);
 
             } catch (err) {
                 console.error(err);
-                document.getElementById('recent-list').innerHTML = 
-                    `<div class="text-center py-8 text-red-400 text-sm">Failed to load data. Pull to refresh.</div>`;
+                document.getElementById('recent-list').innerHTML = '<div class="text-center py-8 text-red-400 text-sm">Error loading data</div>';
             }
         }
 
-        // Simple pull-to-refresh for mobile
-        let startY = 0;
-        let isPulling = false;
+        function filterData(hours, updateActive = true) {
+            if (!allData.length) return;
 
-        function initPullToRefresh() {
-            const container = document.body;
+            // Update active button
+            if (updateActive) {
+                document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active', 'bg-white', 'text-zinc-900'));
+                const activeBtn = document.querySelector(`.filter-btn[data-hours="${hours}"]`);
+                if (activeBtn) activeBtn.classList.add('active', 'bg-white', 'text-zinc-900');
+            }
 
-            container.addEventListener('touchstart', (e) => {
-                if (window.scrollY === 0) {
-                    startY = e.touches[0].clientY;
-                    isPulling = true;
+            const hoursInMs = hours * 60 * 60 * 1000;
+            const now = new Date();
+            const filtered = allData.filter(row => {
+                const recordTime = new Date(row.recorded_at);
+                return (now - recordTime) <= hoursInMs;
+            });
+
+            if (filtered.length === 0) {
+                document.getElementById('recent-list').innerHTML = '<div class="text-center py-6 text-zinc-500 text-sm">No data in this time range</div>';
+                return;
+            }
+
+            // Update current price (always latest overall)
+            const latest = allData[0];
+            const price = parseFloat(latest.price);
+            document.getElementById('current-price').innerHTML = 
+                `${price.toFixed(1)}<span class="text-4xl font-normal align-super">¢</span>`;
+            document.getElementById('current-emoji').innerHTML = getEmoji(price);
+            
+            const recorded = new Date(latest.recorded_at);
+            document.getElementById('current-time').innerHTML = 
+                `Updated ${recorded.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+
+            // Stats for filtered data
+            const prices = filtered.map(r => parseFloat(r.price));
+            const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const high = Math.max(...prices);
+            const low = Math.min(...prices);
+
+            document.getElementById('avg-price').innerHTML = avg.toFixed(1) + '¢';
+            document.getElementById('high-price').innerHTML = high.toFixed(1) + '¢';
+            document.getElementById('low-price').innerHTML = low.toFixed(1) + '¢';
+
+            // Update chart
+            updateChart(filtered);
+
+            // Update recent list (show up to 25)
+            const container = document.getElementById('recent-list');
+            container.innerHTML = '';
+
+            filtered.slice(0, 25).forEach(row => {
+                const p = parseFloat(row.price);
+                const time = new Date(row.recorded_at);
+                
+                const el = document.createElement('div');
+                el.className = `flex items-center justify-between px-4 py-[13px] bg-zinc-900/70 border border-zinc-800 rounded-2xl`;
+                
+                el.innerHTML = `
+                    <div class="flex items-center gap-3.5">
+                        <span class="text-3xl">${getEmoji(p)}</span>
+                        <div>
+                            <div class="font-semibold text-xl tracking-tight price-value">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
+                            <div class="text-[10px] text-zinc-500 -mt-0.5">
+                                ${time.toLocaleDateString([], {month:'short', day:'numeric'})} · ${time.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-right text-xs text-zinc-400 font-mono">
+                        ${time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                    </div>
+                `;
+                container.appendChild(el);
+            });
+
+            document.getElementById('reading-count').innerHTML = `${filtered.length} readings`;
+        }
+
+        function updateChart(data) {
+            const ctx = document.getElementById('price-chart');
+            
+            if (chartInstance) chartInstance.destroy();
+
+            const labels = data.slice().reverse().map(r => {
+                const d = new Date(r.recorded_at);
+                return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+            });
+
+            const prices = data.slice().reverse().map(r => parseFloat(r.price));
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Price (¢)',
+                        data: prices,
+                        borderColor: '#22c55e',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        fill: false,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } },
+                        y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
+                    }
                 }
             });
+        }
 
-            container.addEventListener('touchmove', (e) => {
-                if (!isPulling) return;
-                const currentY = e.touches[0].clientY;
-                if (currentY - startY > 80) {
-                    isPulling = false;
-                    loadData(true);
-                }
-            });
+        // Simple install prompt for PWA
+        function showInstallPrompt() {
+            if (window.matchMedia('(display-mode: standalone)').matches) return;
 
-            container.addEventListener('touchend', () => {
-                isPulling = false;
-            });
+            const btn = document.createElement('button');
+            btn.className = 'fixed bottom-4 left-1/2 -translate-x-1/2 bg-white text-zinc-900 px-5 py-2.5 rounded-2xl text-sm font-semibold shadow-lg flex items-center gap-2 z-50';
+            btn.innerHTML = `📱 Install on Home Screen`;
+            
+            btn.onclick = () => {
+                btn.remove();
+                alert('On iPhone: Tap the Share button → "Add to Home Screen"');
+            };
+
+            document.body.appendChild(btn);
+
+            // Auto hide after 12 seconds
+            setTimeout(() => btn.remove(), 12000);
         }
 
         // Init
         window.onload = () => {
             loadData();
-            initPullToRefresh();
 
-            // Auto refresh every 5 minutes
+            // Show install prompt after 8 seconds
+            setTimeout(showInstallPrompt, 8000);
+
+            // Background refresh
             setInterval(() => loadData(false), 5 * 60 * 1000);
         };
     </script>

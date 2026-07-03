@@ -1,15 +1,20 @@
 {
   "name": "ComEd Pricing",
   "short_name": "ComEd",
-  "description": "Live ComEd electricity prices and analytics",
+  "description": "Live electricity prices and 24h analytics for ComEd customers",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#18181b",
   "theme_color": "#18181b",
   "icons": [
     {
-      "src": "https://via.placeholder.com/192x192/18181b/ffffff?text=C",
+      "src": "https://via.placeholder.com/192x192/18181b/22c55e?text=C",
       "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://via.placeholder.com/512x512/18181b/22c55e?text=C",
+      "sizes": "512x512",
       "type": "image/png"
     }
   ]
