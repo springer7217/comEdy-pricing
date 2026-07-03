@@ -115,6 +115,7 @@
         let allData = [];
         let displayedCount = 20;
         const ITEMS_PER_PAGE = 20;
+        let currentFilterHours = 24;
 
         function getEmoji(price) {
             if (price <= 8.0) return '🟢';
@@ -168,6 +169,7 @@
 
         function filterData(hours, updateActive = true) {
             if (!allData.length) return;
+            currentFilterHours = hours;
 
             if (updateActive) {
                 document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active', 'bg-white', 'text-zinc-900'));
@@ -219,6 +221,7 @@
             container.innerHTML = '';
 
             const toShow = filteredData.slice(0, displayedCount);
+            const showDate = currentFilterHours > 24;
 
             toShow.forEach(row => {
                 const p = parseFloat(row.price);
@@ -227,6 +230,10 @@
                 const el = document.createElement('div');
                 el.className = `flex items-center justify-between px-4 py-[13px] bg-zinc-900/70 border border-zinc-800 rounded-2xl`;
                 
+                const rightText = showDate 
+                    ? time.toLocaleDateString([], {month:'short', day:'numeric'})
+                    : time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
                 el.innerHTML = `
                     <div class="flex items-center gap-3.5">
                         <span class="text-3xl">${getEmoji(p)}</span>
@@ -238,7 +245,7 @@
                         </div>
                     </div>
                     <div class="text-right text-xs text-zinc-400 font-mono">
-                        ${time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                        ${rightText}
                     </div>
                 `;
                 container.appendChild(el);
