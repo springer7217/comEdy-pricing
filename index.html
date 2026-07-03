@@ -13,7 +13,7 @@
         .price-value { font-variant-numeric: tabular-nums; }
         .skeleton { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .5; } }
-        canvas { max-height: 220px !important; }
+        canvas { max-height: 240px !important; }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
@@ -47,7 +47,7 @@
             </div>
         </div>
 
-        <!-- 24h Stats + Chart -->
+        <!-- Stats -->
         <div class="px-6 mt-6">
             <div class="flex items-center justify-between px-1 mb-3">
                 <div class="text-xs uppercase tracking-widest text-zinc-400 font-medium">Last 24 Hours</div>
@@ -56,15 +56,15 @@
             <div class="grid grid-cols-3 gap-3 mb-4">
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-emerald-400 text-[10px] font-semibold tracking-wider">AVG</div>
-                    <div id="avg-price" class="text-3xl sm:text-4xl font-semibold tracking-tight mt-1 price-value break-all">--</div>
+                    <div id="avg-price" class="text-3xl font-semibold tracking-tight mt-1 price-value">--</div>
                 </div>
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-red-400 text-[10px] font-semibold tracking-wider">HIGH</div>
-                    <div id="high-price" class="text-3xl sm:text-4xl font-semibold tracking-tight mt-1 price-value break-all">--</div>
+                    <div id="high-price" class="text-3xl font-semibold tracking-tight mt-1 price-value break-all">--</div>
                 </div>
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-sky-400 text-[10px] font-semibold tracking-wider">LOW</div>
-                    <div id="low-price" class="text-3xl sm:text-4xl font-semibold tracking-tight mt-1 price-value break-all">--</div>
+                    <div id="low-price" class="text-3xl font-semibold tracking-tight mt-1 price-value">--</div>
                 </div>
             </div>
 
@@ -74,19 +74,21 @@
             </div>
         </div>
 
-        <!-- Time Filter -->
+        <!-- Time Filters -->
         <div class="px-6 mt-6">
-            <div class="flex items-center gap-2 px-1 mb-3">
-                <span class="text-xs uppercase tracking-widest text-zinc-400 font-medium">Show</span>
-                <div class="flex bg-zinc-900 border border-zinc-800 rounded-2xl p-1 text-sm">
+            <div class="flex items-center gap-2 px-1 mb-3 flex-wrap">
+                <span class="text-xs uppercase tracking-widest text-zinc-400 font-medium mr-1">Show</span>
+                <div class="flex flex-wrap gap-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-1 text-sm">
                     <button onclick="filterData(6)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="6">6h</button>
                     <button onclick="filterData(12)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="12">12h</button>
                     <button onclick="filterData(24)" class="filter-btn active px-3 py-1 rounded-xl font-medium bg-white text-zinc-900" data-hours="24">24h</button>
+                    <button onclick="filterData(168)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="168">7d</button>
+                    <button onclick="filterData(720)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="720">30d</button>
                 </button>
             </div>
         </div>
 
-        <!-- Recent Readings with Pagination -->
+        <!-- Recent Readings -->
         <div class="px-6 mt-2">
             <div class="flex items-baseline justify-between px-1 mb-3">
                 <span class="text-sm font-semibold">Recent Readings</span>
@@ -137,7 +139,7 @@
 
             try {
                 const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=300`,
+                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=500`,
                     {
                         headers: {
                             apikey: SUPABASE_ANON_KEY,
@@ -186,7 +188,7 @@
                 return;
             }
 
-            // Update current price
+            // Current price
             const latest = allData[0];
             const price = parseFloat(latest.price);
             document.getElementById('current-price').innerHTML = 
@@ -207,10 +209,7 @@
             document.getElementById('high-price').innerHTML = high.toFixed(1) + '¢';
             document.getElementById('low-price').innerHTML = low.toFixed(1) + '¢';
 
-            // Update chart
             updateChart(filtered);
-
-            // Reset pagination and render first page
             displayedCount = ITEMS_PER_PAGE;
             renderRecentList(filtered);
         }
@@ -245,13 +244,8 @@
                 container.appendChild(el);
             });
 
-            // Show/hide Load More button
             const loadMoreBtn = document.getElementById('load-more-btn');
-            if (filteredData.length > displayedCount) {
-                loadMoreBtn.classList.remove('hidden');
-            } else {
-                loadMoreBtn.classList.add('hidden');
-            }
+            loadMoreBtn.style.display = (filteredData.length > displayedCount) ? 'block' : 'none';
 
             document.getElementById('reading-count').innerHTML = `${filteredData.length} readings`;
         }
@@ -290,16 +284,33 @@
                         label: 'Price (¢)',
                         data: prices,
                         borderColor: '#22c55e',
-                        borderWidth: 2,
-                        tension: 0.3,
+                        borderWidth: 2.5,
+                        tension: 0.25,
                         fill: false,
-                        pointRadius: 0
+                        pointRadius: 2,
+                        pointHoverRadius: 5
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#27272a',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            displayColors: false,
+                            callbacks: {
+                                title: (ctx) => ctx[0].label,
+                                label: (ctx) => ctx.raw + '¢/kWh'
+                            }
+                        }
+                    },
                     scales: {
                         x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } },
                         y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
