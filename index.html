@@ -60,7 +60,7 @@
                 </div>
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-red-400 text-[10px] font-semibold tracking-wider">HIGH</div>
-                    <div id="high-price" class="text-3xl font-semibold tracking-tight mt-1 price-value break-all">--</div>
+                    <div id="high-price" class="text-3xl font-semibold tracking-tight mt-1 price-value">--</div>
                 </div>
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-sky-400 text-[10px] font-semibold tracking-wider">LOW</div>
@@ -287,30 +287,13 @@
                         borderWidth: 2.5,
                         tension: 0.25,
                         fill: false,
-                        pointRadius: 2,
-                        pointHoverRadius: 5
+                        pointRadius: 0
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    interaction: {
-                        intersect: false,
-                        mode: 'index'
-                    },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            backgroundColor: '#27272a',
-                            titleColor: '#fff',
-                            bodyColor: '#fff',
-                            displayColors: false,
-                            callbacks: {
-                                title: (ctx) => ctx[0].label,
-                                label: (ctx) => ctx.raw + '¢/kWh'
-                            }
-                        }
-                    },
+                    plugins: { legend: { display: false } },
                     scales: {
                         x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } },
                         y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
