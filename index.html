@@ -140,7 +140,7 @@
 
             try {
                 const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=500`,
+                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=2000`,
                     {
                         headers: {
                             apikey: SUPABASE_ANON_KEY,
@@ -280,16 +280,16 @@
             if (hours <= 24) {
                 labelFormat = { hour: 'numeric', minute: '2-digit' };
             } else if (hours <= 168) {
-                // 7 days - show day + short date
-                labelFormat = { weekday: 'short', month: 'numeric', day: 'numeric' };
+                // 7 days - Month Day format
+                labelFormat = { month: 'long', day: 'numeric' };
             } else {
-                // 30 days - show month + day
-                labelFormat = { month: 'short', day: 'numeric' };
+                // 30 days - Month Day format
+                labelFormat = { month: 'long', day: 'numeric' };
             }
 
             const labels = data.slice().reverse().map(r => {
                 const d = new Date(r.recorded_at);
-                return d.toLocaleTimeString([], labelFormat);
+                return d.toLocaleDateString([], labelFormat);
             });
 
             const prices = data.slice().reverse().map(r => parseFloat(r.price));
