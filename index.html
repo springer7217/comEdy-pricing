@@ -276,26 +276,28 @@
             const ctx = document.getElementById('price-chart');
             if (chartInstance) chartInstance.destroy();
 
-            let labelFormat;
-            if (hours <= 24) {
-                // Short ranges: clean time only with AM/PM
-                labelFormat = { 
-                    hour: 'numeric', 
-                    minute: '2-digit',
-                    hour12: true 
-                };
-            } else if (hours <= 168) {
-                // 7 days
-                labelFormat = { month: 'long', day: 'numeric' };
-            } else {
-                // 30 days
-                labelFormat = { month: 'long', day: 'numeric' };
-            }
+            let labels;
 
-            const labels = data.slice().reverse().map(r => {
-                const d = new Date(r.recorded_at);
-                return d.toLocaleTimeString([], labelFormat);
-            });
+            if (hours <= 24) {
+                // Short ranges: clean time only (8:30 AM)
+                labels = data.slice().reverse().map(r => {
+                    const d = new Date(r.recorded_at);
+                    return d.toLocaleTimeString([], { 
+                        hour: 'numeric', 
+                        minute: '2-digit',
+                        hour12: true 
+                    });
+                });
+            } else {
+                // 7d and 30d: Month + Day (Jun 1, Jun 2)
+                labels = data.slice().reverse().map(r => {
+                    const d = new Date(r.recorded_at);
+                    return d.toLocaleDateString([], { 
+                        month: 'short', 
+                        day: 'numeric' 
+                    });
+                });
+            }
 
             const prices = data.slice().reverse().map(r => parseFloat(r.price));
 
