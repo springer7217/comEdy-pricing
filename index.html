@@ -379,6 +379,14 @@
             }
         }
 
+        // Safe formatter for amounts that might be null
+        function formatAmount(value) {
+            if (value === null || value === undefined) {
+                return 'N/A';
+            }
+            return formatPrice(value * 100);
+        }
+
         function showSkeleton() {
             document.getElementById('current-price').innerHTML = '<div class="h-16 w-44 bg-zinc-800 rounded-2xl skeleton"></div>';
             document.getElementById('current-emoji').innerHTML = '⏳';
@@ -549,9 +557,12 @@
             document.getElementById('modal-kwh').innerHTML = `${bill.total_kwh} kWh`;
             document.getElementById('modal-total').innerHTML = formatPrice(bill.total_due * 100);
             
-            document.getElementById('modal-supply').innerHTML = `${formatPrice(bill.supply_amount * 100)} (${bill.supply_rate}¢/kWh)`;
-            document.getElementById('modal-delivery').innerHTML = `${formatPrice(bill.delivery_amount * 100)} (${bill.delivery_rate}¢/kWh)`;
-            document.getElementById('modal-taxes').innerHTML = formatPrice(bill.taxes_fees_amount * 100);
+            // Use safe formatter for fields that may be null
+            document.getElementById('modal-supply').innerHTML = 
+                `${formatAmount(bill.supply_amount)} (${bill.supply_rate || 'N/A'}¢/kWh)`;
+            document.getElementById('modal-delivery').innerHTML = 
+                `${formatAmount(bill.delivery_amount)} (${bill.delivery_rate || 'N/A'}¢/kWh)`;
+            document.getElementById('modal-taxes').innerHTML = formatAmount(bill.taxes_fees_amount);
             
             document.getElementById('modal-effective').innerHTML = formatPrice(bill.effective_rate * 100);
             
