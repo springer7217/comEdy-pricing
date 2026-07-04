@@ -85,6 +85,20 @@
                 </div>
             </div>
 
+            <!-- Time Filters -->
+            <div class="px-6 mt-6">
+                <div class="flex items-center gap-2 px-1 mb-3 flex-wrap">
+                    <span class="text-xs uppercase tracking-widest text-zinc-400 font-medium mr-1">Show</span>
+                    <div class="flex flex-wrap gap-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-1 text-sm">
+                        <button onclick="filterData(6)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="6">6h</button>
+                        <button onclick="filterData(12)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="12">12h</button>
+                        <button onclick="filterData(24)" class="filter-btn active px-3 py-1 rounded-xl font-medium bg-white text-zinc-900" data-hours="24">24h</button>
+                        <button onclick="filterData(168)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="168">7d</button>
+                        <button onclick="filterData(720)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="720">30d</button>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Chart -->
             <div class="px-6 mt-6">
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
