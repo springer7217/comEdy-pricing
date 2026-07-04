@@ -6,8 +6,8 @@
     <title>ComEd Pricing</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Supabase JS Client -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Supabase JS Client (with defer) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <link rel="manifest" href="manifest.json">
     <style>
         body { font-family: system-ui, -apple-system, BlinkSystemFont, 'Segoe UI', Roboto, sans-serif; }
@@ -141,9 +141,6 @@
     <script>
         const SUPABASE_URL = 'https://qgasjpfbzjqlheexlouw.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYXNqcGZiempxbGhlZXhsb3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMzc2OTgsImV4cCI6MjA5ODYxMzY5OH0.cdZFeiMTV8zoQxgXI9-mLWNxmj9-r2eVoRZt9vfyaSk';
-
-        // Initialize Supabase client
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let chartInstance = null;
         let allData = [];
@@ -434,10 +431,21 @@
         }
 
         window.onload = () => {
+            // Initialize Supabase client AFTER all scripts have loaded
+            const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+            // Make supabase available globally for loadData()
+            window.supabaseClient = supabase;
+
             loadData();
             initPullToRefresh();
             setInterval(() => loadData(false), 5 * 60 * 1000);
         };
+
+        // Helper to get the supabase client from anywhere
+        function getSupabase() {
+            return window.supabaseClient;
+        }
     </script>
 </body>
 </html>
