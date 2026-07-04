@@ -214,18 +214,8 @@
                     </div>
                 </div>
 
-                <!-- Bills List -->
-                <div class="mb-3 px-1 flex items-center justify-between">
-                    <span class="text-sm font-semibold">Bill History</span>
-                    <span id="bill-count" class="text-xs text-zinc-500"></span>
-                </div>
-
-                <div id="bills-list" class="space-y-3 mb-6">
-                    <!-- Populated by JS -->
-                </div>
-
-                <!-- Charts -->
-                <div class="space-y-6">
+                <!-- Charts Section (moved to top) -->
+                <div class="space-y-6 mb-6">
                     <!-- Effective Rate by Season -->
                     <div class="glass border border-zinc-800 rounded-2xl p-4">
                         <div class="text-sm font-semibold mb-3 px-1">Effective Rate by Season</div>
@@ -237,6 +227,16 @@
                         <div class="text-sm font-semibold mb-3 px-1">Monthly Total Spend</div>
                         <canvas id="monthly-spend-chart"></canvas>
                     </div>
+                </div>
+
+                <!-- Bills List -->
+                <div class="mb-3 px-1 flex items-center justify-between">
+                    <span class="text-sm font-semibold">Bill History</span>
+                    <span id="bill-count" class="text-xs text-zinc-500"></span>
+                </div>
+
+                <div id="bills-list" class="space-y-3">
+                    <!-- Populated by JS -->
                 </div>
 
             </div>
