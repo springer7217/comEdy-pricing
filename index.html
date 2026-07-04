@@ -371,20 +371,28 @@
             return '🔴';
         }
 
+        // Format values that are already in dollars (supply, delivery, taxes, total)
+        function formatDollarAmount(value) {
+            if (value === null || value === undefined) return 'N/A';
+            const num = parseFloat(value);
+            if (num < 0) {
+                return '-$' + Math.abs(num).toFixed(2);
+            }
+            return '$' + num.toFixed(2);
+        }
+
+        // Format cent-based values (rates and diffs)
+        function formatCents(value) {
+            if (value === null || value === undefined) return 'N/A';
+            return parseFloat(value).toFixed(1) + '¢';
+        }
+
         function formatPrice(p) {
             if (p >= 100) {
                 return '$' + (p / 100).toFixed(2);
             } else {
                 return p.toFixed(1) + '¢';
             }
-        }
-
-        // Safe formatter for amounts that might be null
-        function formatAmount(value) {
-            if (value === null || value === undefined) {
-                return 'N/A';
-            }
-            return formatPrice(value * 100);
         }
 
         function showSkeleton() {
@@ -540,11 +548,12 @@
             const avgDiff = bills.reduce((sum, b) => sum + parseFloat(b.market_vs_paid_diff), 0) / totalBills;
 
             document.getElementById('total-bills').innerHTML = totalBills;
-            document.getElementById('total-spent').innerHTML = '$' + totalSpent.toFixed(0);
-            document.getElementById('avg-effective-rate').innerHTML = avgEffective.toFixed(1) + '¢';
+            document.getElementById('total-spent').innerHTML = formatDollarAmount(totalSpent);
+            document.getElementById('avg-effective-rate').innerHTML = formatCents(avgEffective);
             
             const diffEl = document.getElementById('avg-vs-market');
-            diffEl.innerHTML = (avgDiff > 0 ? '+' : '') + avgDiff.toFixed(1) + '¢';
+            const sign = avgDiff > 0 ? '+' : '';
+            diffEl.innerHTML = `${sign}${avgDiff.toFixed(2)}¢`;
             diffEl.className = `text-3xl font-semibold mt-1 ${avgDiff > 0 ? 'text-red-400' : 'text-emerald-400'}`;
         }
 
@@ -555,20 +564,21 @@
                 `${new Date(bill.service_start).toLocaleDateString([], {month:'long', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'long', day:'numeric'})}`;
             
             document.getElementById('modal-kwh').innerHTML = `${bill.total_kwh} kWh`;
-            document.getElementById('modal-total').innerHTML = formatPrice(bill.total_due * 100);
+            document.getElementById('modal-total').innerHTML = formatDollarAmount(bill.total_due);
             
-            // Use safe formatter for fields that may be null
+            // Dollar-based fields (already in $)
             document.getElementById('modal-supply').innerHTML = 
-                `${formatAmount(bill.supply_amount)} (${bill.supply_rate || 'N/A'}¢/kWh)`;
+                `${formatDollarAmount(bill.supply_amount)} (${formatCents(bill.supply_rate)}/kWh)`;
             document.getElementById('modal-delivery').innerHTML = 
-                `${formatAmount(bill.delivery_amount)} (${bill.delivery_rate || 'N/A'}¢/kWh)`;
-            document.getElementById('modal-taxes').innerHTML = formatAmount(bill.taxes_fees_amount);
+                `${formatDollarAmount(bill.delivery_amount)} (${formatCents(bill.delivery_rate)}/kWh)`;
+            document.getElementById('modal-taxes').innerHTML = formatDollarAmount(bill.taxes_fees_amount);
             
-            document.getElementById('modal-effective').innerHTML = formatPrice(bill.effective_rate * 100);
+            document.getElementById('modal-effective').innerHTML = formatCents(bill.effective_rate);
             
             const diffEl = document.getElementById('modal-diff');
             const diff = parseFloat(bill.market_vs_paid_diff);
-            diffEl.innerHTML = `${diff > 0 ? '+' : ''}${diff.toFixed(2)}¢ vs market`;
+            const sign = diff > 0 ? '+' : '';
+            diffEl.innerHTML = `${sign}${diff.toFixed(2)}¢ vs market`;
             diffEl.className = `text-sm font-medium ${diff > 0 ? 'text-red-400' : 'text-emerald-400'}`;
 
             const badgesContainer = document.getElementById('modal-season-credits');
@@ -638,7 +648,7 @@
                             <div class="text-xs text-zinc-400 mt-0.5">${bill.days} days • ${bill.total_kwh} kWh</div>
                         </div>
                         <div class="text-right">
-                            <div class="font-semibold text-lg">${formatPrice(bill.total_due * 100)}</div>
+                            <div class="font-semibold text-lg">${formatDollarAmount(bill.total_due)}</div>
                             <div class="text-[10px] text-zinc-500">Total Due</div>
                         </div>
                     </div>
@@ -646,11 +656,11 @@
                     <div class="grid grid-cols-3 gap-2 text-sm">
                         <div>
                             <div class="text-[10px] text-zinc-400">Effective Rate</div>
-                            <div class="font-semibold">${formatPrice(effective * 100)}</div>
+                            <div class="font-semibold">${formatCents(effective)}</div>
                         </div>
                         <div>
                             <div class="text-[10px] text-zinc-400">Market Avg</div>
-                            <div class="font-semibold">${formatPrice(marketAvg * 100)}</div>
+                            <div class="font-semibold">${formatCents(marketAvg)}</div>
                         </div>
                         <div>
                             <div class="text-[10px] text-zinc-400">vs Market</div>
