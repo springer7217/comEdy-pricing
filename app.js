@@ -126,16 +126,35 @@ function switchTab(tab) {
     }
 }
 
-// ==================== SUPABASE ====================
+// ==================== SUPABASE INITIALIZATION ====================
 function initializeSupabase() {
     if (window.supabase && typeof window.supabase.createClient === 'function') {
-        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        loadData();
-        loadBills();
-        initPullToRefresh();
-        setInterval(() => loadData(false), 5 * 60 * 1000);
+        try {
+            supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('%c[Supabase] Client initialized successfully', 'color: #4ade80');
+            loadData();
+            loadBills();
+            initPullToRefresh();
+            setInterval(() => loadData(false), 5 * 60 * 1000);
+        } catch (err) {
+            console.error('[Supabase] Failed to initialize client:', err);
+            showInitializationError();
+        }
     } else {
-        setTimeout(initializeSupabase, 30);
+        console.warn('[Supabase] Waiting for Supabase script to load...');
+        setTimeout(initializeSupabase, 50);
+    }
+}
+
+function showInitializationError() {
+    const recentList = document.getElementById('recent-list');
+    if (recentList) {
+        recentList.innerHTML = `
+            <div class="text-center py-8 text-red-400 text-sm">
+                Failed to connect to database.<br>
+                Please refresh the page.
+            </div>
+        `;
     }
 }
 
@@ -150,25 +169,34 @@ async function loadData(showLoading = true) {
             .order('recorded_at', { ascending: false })
             .limit(2000);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Supabase Query Error:', error.message, error.details);
+            throw error;
+        }
 
-        allPriceData = data;
+        allPriceData = data || [];
         displayedCount = 5;
         filterData(currentFilterHours, false);
+
     } catch (err) {
-        console.error(err);
-        document.getElementById('recent-list').innerHTML = '<div class="text-center py-8 text-red-400 text-sm">Error loading data</div>';
+        console.error('Fetch Operation Failed:', err);
+        const recentList = document.getElementById('recent-list');
+        if (recentList) {
+            recentList.innerHTML = `
+                <div class="text-center py-8 text-red-400 text-sm">
+                    Error loading price data.<br>
+                    <button onclick="loadData(true)" class="mt-3 px-4 py-1.5 bg-zinc-800 hover:bg-zinc-700 rounded-xl text-sm">
+                        Try Again
+                    </button>
+                </div>
+            `;
+        }
     }
 }
 
 function filterData(hours, updateActive = true) {
     if (!allPriceData.length) return;
     currentFilterHours = hours;
-
-    if (updateActive) {
-        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
-        // Add active class logic if needed
-    }
 
     const hoursInMs = hours * 60 * 60 * 1000;
     const now = new Date();
@@ -178,20 +206,22 @@ function filterData(hours, updateActive = true) {
     });
 
     if (filtered.length === 0) {
-        document.getElementById('recent-list').innerHTML = '<div class="text-center py-6 text-zinc-500 text-sm">No data in this time range</div>';
+        document.getElementById('recent-list').innerHTML = 
+            '<div class="text-center py-6 text-zinc-500 text-sm">No data in this time range</div>';
         return;
     }
 
-    // Update current price with animation
+    // Animate current price
     const latest = allPriceData[0];
     const price = parseFloat(latest.price);
     animateSlotNumber(document.getElementById('current-price'), price.toFixed(1) + '¢');
-
     document.getElementById('current-emoji').innerHTML = getEmoji(price);
-    const recorded = new Date(latest.recorded_at);
-    document.getElementById('current-time').innerHTML = `Updated ${recorded.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 
-    // Stats with animation
+    const recorded = new Date(latest.recorded_at);
+    document.getElementById('current-time').innerHTML = 
+        `Updated ${recorded.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+
+    // Animate stats
     const prices = filtered.map(r => parseFloat(r.price));
     const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
     const high = Math.max(...prices);
@@ -255,7 +285,8 @@ function renderRecentList(filteredData) {
     });
 
     document.getElementById('reading-count').innerHTML = `${filteredData.length} readings`;
-    document.getElementById('load-more-btn').classList.toggle('hidden', filteredData.length <= displayedCount);
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    loadMoreBtn.style.display = (filteredData.length > displayedCount) ? 'block' : 'none';
 }
 
 function loadMore() {
@@ -272,6 +303,7 @@ async function loadBills() {
             .order('service_start', { ascending: false });
 
         if (error) throw error;
+
         allBillsData = data || [];
         renderBillsList(allBillsData);
         renderSummaryStats(allBillsData);
@@ -335,11 +367,10 @@ function showBillModal(bill) {
     const modal = document.getElementById('bill-modal');
     const modalContent = modal.querySelector('.glass');
 
-    // Populate fields (add your full population logic here)
     document.getElementById('modal-period').innerHTML = 
         `${new Date(bill.service_start).toLocaleDateString([], {month:'long', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'long', day:'numeric'})}`;
 
-    // Add more fields as needed...
+    // Add your other modal field population here...
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
@@ -381,19 +412,17 @@ function formatCents(rate) {
 }
 
 function showSkeleton() {
-    // Add skeleton loading if needed
+    // You can expand this later if needed
 }
 
 // ==================== PULL TO REFRESH ====================
 function initPullToRefresh() {
-    // Your existing pull-to-refresh logic
-    console.log('Pull to refresh initialized');
+    // Add your pull-to-refresh logic here if needed
 }
 
-// ==================== CHARTS ====================
+// ==================== CHART ====================
 function updateChart(data) {
-    // Your Chart.js logic here
-    console.log('Chart updated');
+    // Your Chart.js logic
 }
 
 // ==================== INIT ====================
