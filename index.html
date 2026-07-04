@@ -18,7 +18,11 @@
         .bill-card { transition: transform 0.1s ease, box-shadow 0.1s ease; cursor: pointer; }
         .bill-card:hover { transform: translateY(-1px); box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1); }
         .season-badge { font-size: 10px; padding: 1px 8px; border-radius: 9999px; font-weight: 600; letter-spacing: 0.5px; }
-        .tab-button.active { background-color: #27272a; color: white; border-bottom: 2px solid #22c55e; }
+        .tab-button.active { 
+            background-color: #27272a; 
+            color: white; 
+            border-bottom: 2px solid #22c55e; 
+        }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
@@ -35,7 +39,7 @@
             </div>
 
             <div class="flex mt-4 border-b border-zinc-800">
-                <button onclick="switchTab('live')" class="tab-button active flex-1 py-2 text-sm font-medium text-center border-b-2 border-emerald-500" id="tab-live">Live Prices</button>
+                <button onclick="switchTab('live')" class="tab-button flex-1 py-2 text-sm font-medium text-center" id="tab-live">Live Prices</button>
                 <button onclick="switchTab('bills')" class="tab-button flex-1 py-2 text-sm font-medium text-center text-zinc-400" id="tab-bills">My Bills</button>
             </div>
         </div>
@@ -272,7 +276,6 @@
             let filtered;
 
             if (hours > 24) {
-                // For long ranges, directly query the exact time window we need
                 const neededFrom = new Date(Date.now() - (hours * 60 * 60 * 1000));
                 const { data, error } = await window.supabaseClient
                     .from('comed_prices')
@@ -293,7 +296,6 @@
 
             if (filtered.length === 0) return;
 
-            // Update current price from latest overall data
             if (allData.length > 0) {
                 const latest = allData[0];
                 const price = parseFloat(latest.price);
@@ -359,7 +361,6 @@
 
         function loadMore() {
             displayedCount += 10;
-            // For simplicity, reload current filter
             filterData(currentFilterHours, false);
         }
 
@@ -369,7 +370,6 @@
             const liveBtn = document.getElementById('tab-live');
             const billsBtn = document.getElementById('tab-bills');
 
-            // Remove active from both buttons
             liveBtn.classList.remove('active');
             billsBtn.classList.remove('active');
 
@@ -384,7 +384,6 @@
             }
         }
 
-        // ==================== MY BILLS ====================
         async function loadBills() {
             try {
                 const client = window.supabaseClient;
