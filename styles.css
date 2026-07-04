@@ -1,16 +1,25 @@
+/* ==================== BASE STYLES ==================== */
 body {
     font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #09090b;
+    color: white;
 }
 
 .glass {
     background: rgba(39, 39, 42, 0.85);
     backdrop-filter: blur(20px);
+    border: 1px solid #27272a;
 }
 
-/* Tab Styles */
+/* ==================== TAB STYLES ==================== */
 .tab-button {
     position: relative;
     transition: all 0.2s ease;
+    color: #a1a1aa;
+}
+
+.tab-button:hover {
+    color: #e4e4e7;
 }
 
 .tab-button.active {
@@ -27,9 +36,25 @@ body {
     height: 3px;
     background: linear-gradient(to right, #22c55e, #4ade80);
     border-radius: 3px 3px 0 0;
+    transition: all 0.3s ease;
 }
 
-/* Bill Cards */
+/* ==================== FILTER BUTTONS ==================== */
+.filter-btn {
+    transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+    background-color: #27272a;
+}
+
+.filter-btn.active {
+    background-color: white;
+    color: #18181b;
+    font-weight: 600;
+}
+
+/* ==================== BILL CARDS ==================== */
 .bill-card {
     transition: transform 0.2s ease, box-shadow 0.2s ease;
     cursor: pointer;
@@ -40,16 +65,42 @@ body {
     box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
 }
 
-/* Accessibility Improvements */
+.bill-card:active {
+    transform: scale(0.985);
+}
+
+/* ==================== MODAL ANIMATION ==================== */
+#bill-modal .glass {
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), 
+                opacity 0.25s ease;
+}
+
+/* ==================== ACCESSIBILITY IMPROVEMENTS ==================== */
 .text-\[10px\] {
-    color: #a1a1aa;
+    color: #a1a1aa; /* zinc-400 - better contrast */
 }
 
 #current-time {
-    color: #d4d4d8;
+    color: #d4d4d8; /* zinc-300 - better contrast */
 }
 
-/* Modal Animation */
-#bill-modal .glass {
-    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.25s ease;
+/* ==================== SCORECARD NUMBER FITTING ==================== */
+#avg-price,
+#high-price,
+#low-price {
+    font-size: 1.65rem;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+/* ==================== CHART CONTAINER ==================== */
+#price-chart {
+    min-height: 220px;
+}
+
+/* ==================== GENERAL UTILITIES ==================== */
+button:focus-visible {
+    outline: 2px solid #22c55e;
+    outline-offset: 2px;
 }
