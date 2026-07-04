@@ -35,6 +35,20 @@
         .pull-to-refresh.active {
             opacity: 1;
         }
+        .bill-card {
+            transition: transform 0.1s ease, box-shadow 0.1s ease;
+        }
+        .bill-card:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+        }
+        .season-badge {
+            font-size: 10px;
+            padding: 1px 8px;
+            border-radius: 9999px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
@@ -136,6 +150,33 @@
                 Load More
             </button>
         </div>
+
+        <!-- ==================== MY BILLS SECTION ==================== -->
+        <div class="px-6 mt-8">
+            <div class="flex items-center justify-between px-1 mb-3">
+                <div>
+                    <span class="text-sm font-semibold">My Bills</span>
+                    <span class="ml-2 text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full">Personal</span>
+                </div>
+                <span id="bill-count" class="text-xs text-zinc-500"></span>
+            </div>
+
+            <div id="bills-list" class="space-y-3">
+                <!-- Populated by JS -->
+            </div>
+
+            <!-- Coming Soon: Upload your own PDFs -->
+            <div class="mt-4 p-4 border border-dashed border-zinc-700 rounded-2xl bg-zinc-900/50">
+                <div class="flex items-start gap-3">
+                    <div class="text-2xl mt-0.5">📄</div>
+                    <div class="flex-1">
+                        <div class="font-medium text-sm">Upload your own ComEd PDFs</div>
+                        <div class="text-xs text-zinc-400 mt-0.5">Coming soon. Analyze your bill history the same way.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
 
     <script>
@@ -154,7 +195,6 @@
             return '🔴';
         }
 
-        // Format price: under $1 shows as X.X¢, $1+ shows as $X.XX
         function formatPrice(p) {
             if (p >= 100) {
                 return '$' + (p / 100).toFixed(2);
@@ -206,6 +246,91 @@
             }
         }
 
+        async function loadBills() {
+            try {
+                const client = window.supabaseClient;
+                if (!client) return;
+
+                const { data, error } = await client
+                    .from('bill_with_price_insights')
+                    .select('*')
+                    .order('service_start', { ascending: false });
+
+                if (error) throw error;
+
+                renderBillsList(data);
+            } catch (err) {
+                console.error('Error loading bills:', err);
+                document.getElementById('bills-list').innerHTML = 
+                    '<div class="text-center py-6 text-red-400 text-sm">Could not load bill history</div>';
+            }
+        }
+
+        function renderBillsList(bills) {
+            const container = document.getElementById('bills-list');
+            container.innerHTML = '';
+
+            if (!bills || bills.length === 0) {
+                container.innerHTML = '<div class="text-center py-6 text-zinc-500 text-sm">No bills found</div>';
+                return;
+            }
+
+            document.getElementById('bill-count').innerHTML = `${bills.length} bills`;
+
+            bills.forEach(bill => {
+                const el = document.createElement('div');
+                el.className = `bill-card glass border border-zinc-800 rounded-2xl p-4`;
+
+                const effective = parseFloat(bill.effective_rate) || 0;
+                const marketAvg = parseFloat(bill.avg_price_during_period) || 0;
+                const diff = parseFloat(bill.market_vs_paid_diff) || 0;
+
+                const diffColor = diff > 0 ? 'text-red-400' : 'text-emerald-400';
+                const diffSign = diff > 0 ? '+' : '';
+
+                let seasonColor = 'bg-zinc-700 text-zinc-300';
+                if (bill.billing_season === 'summer') seasonColor = 'bg-orange-500/10 text-orange-400';
+                if (bill.billing_season === 'winter') seasonColor = 'bg-sky-500/10 text-sky-400';
+                if (bill.billing_season === 'spring') seasonColor = 'bg-emerald-500/10 text-emerald-400';
+                if (bill.billing_season === 'fall') seasonColor = 'bg-amber-500/10 text-amber-400';
+
+                el.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <div class="font-semibold">${new Date(bill.service_start).toLocaleDateString([], {month:'short', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'short', day:'numeric'})}</div>
+                            <div class="text-xs text-zinc-400 mt-0.5">${bill.days} days • ${bill.total_kwh} kWh</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-semibold text-lg">${formatPrice(bill.total_due * 100)}</div>
+                            <div class="text-[10px] text-zinc-500">Total Due</div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-2 text-sm">
+                        <div>
+                            <div class="text-[10px] text-zinc-400">Effective Rate</div>
+                            <div class="font-semibold">${formatPrice(effective * 100)}</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-zinc-400">Market Avg</div>
+                            <div class="font-semibold">${formatPrice(marketAvg * 100)}</div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] text-zinc-400">vs Market</div>
+                            <div class="font-semibold ${diffColor}">${diffSign}${diff.toFixed(2)}¢</div>
+                        </div>
+                    </div>
+
+                    <div class="mt-3 flex items-center gap-2">
+                        <span class="season-badge ${seasonColor}">${bill.billing_season}</span>
+                        ${bill.has_credits ? '<span class="text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full">Credits</span>' : ''}
+                    </div>
+                `;
+
+                container.appendChild(el);
+            });
+        }
+
         function filterData(hours, updateActive = true) {
             if (!allData.length) return;
             currentFilterHours = hours;
@@ -229,7 +354,6 @@
                 return;
             }
 
-            // Current price - use new formatter
             const latest = allData[0];
             const price = parseFloat(latest.price);
             document.getElementById('current-price').innerHTML = formatPrice(price);
@@ -239,7 +363,6 @@
             document.getElementById('current-time').innerHTML = 
                 `Updated ${recorded.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 
-            // Stats - use formatter for consistency
             const prices = filtered.map(r => parseFloat(r.price));
             const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
             const high = Math.max(...prices);
@@ -379,7 +502,6 @@
             });
         }
 
-        // ==================== PULL TO REFRESH ====================
         function initPullToRefresh() {
             const indicator = document.getElementById('pull-indicator');
             const pullText = document.getElementById('pull-text');
@@ -447,7 +569,11 @@
             setTimeout(() => {
                 if (window.supabase && window.supabase.createClient) {
                     window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    
+                    // Load both live prices and bills
                     loadData();
+                    loadBills();
+                    
                     initPullToRefresh();
                     setInterval(() => loadData(false), 5 * 60 * 1000);
                 } else {
