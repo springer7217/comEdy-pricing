@@ -707,7 +707,7 @@
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false;
+                    maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
                         x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } },
@@ -758,50 +758,7 @@
             });
         }
 
-        async function ensureEnoughDataForRange(hours) {
-            if (!window.supabaseClient || allData.length === 0) return;
-
-            const hoursInMs = hours * 60 * 60 * 1000;
-            const now = new Date();
-            const neededFrom = new Date(now.getTime() - hoursInMs);
-
-            // Find oldest record we currently have
-            const oldestTimestamp = Math.min(...allData.map(r => new Date(r.recorded_at).getTime()));
-            const oldestWeHave = new Date(oldestTimestamp);
-
-            if (oldestWeHave <= neededFrom) {
-                return; // We already have enough data
-            }
-
-            console.log(`[Smart Load] Fetching more data for ${hours}h range...`);
-
-            const { data, error } = await window.supabaseClient
-                .from('comed_prices')
-                .select('*')
-                .gte('recorded_at', neededFrom.toISOString())
-                .order('recorded_at', { ascending: false })
-                .limit(15000);
-
-            if (error) {
-                console.error('Error fetching additional data:', error);
-                return;
-            }
-
-            // Merge without duplicates
-            const existingIds = new Set(allData.map(d => d.id));
-            const newRecords = data.filter(d => !existingIds.has(d.id));
-
-            if (newRecords.length > 0) {
-                allData = [...newRecords, ...allData];
-                allData.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
-                console.log(`[Smart Load] Added ${newRecords.length} more records.`);
-            }
-        }
-
-        async function filterData(hours, updateActive = true) {
-            // Smart data loading - fetch more if needed for long ranges
-            await ensureEnoughDataForRange(hours);
-
+        function filterData(hours, updateActive = true) {
             if (!allData.length) return;
             currentFilterHours = hours;
 
