@@ -6,9 +6,11 @@
     <title>ComEd Pricing</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link rel="manifest" href="manifest.json">
     <style>
-        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
+        body { font-family: system-ui, -apple-system, BlinkSystemFont, 'Segoe UI', Roboto, sans-serif; }
         .glass { background: rgba(39, 39, 42, 0.85); backdrop-filter: blur(20px); }
         .price-value { font-variant-numeric: tabular-nums; }
         .skeleton { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
@@ -113,7 +115,7 @@
                     <button onclick="filterData(24)" class="filter-btn active px-3 py-1 rounded-xl font-medium bg-white text-zinc-900" data-hours="24">24h</button>
                     <button onclick="filterData(168)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="168">7d</button>
                     <button onclick="filterData(720)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="720">30d</button>
-                </button>
+                </div>
             </div>
         </div>
 
@@ -140,10 +142,13 @@
         const SUPABASE_URL = 'https://qgasjpfbzjqlheexlouw.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYXNqcGZiempxbGhlZXhsb3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMzc2OTgsImV4cCI6MjA5ODYxMzY5OH0.cdZFeiMTV8zoQxgXI9-mLWNxmj9-r2eVoRZt9vfyaSk';
 
+        // Initialize Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
         let chartInstance = null;
         let allData = [];
-        let displayedCount = 5;           // Start with 5
-        const LOAD_MORE_AMOUNT = 10;      // Load 10 more each time
+        let displayedCount = 5;
+        const LOAD_MORE_AMOUNT = 10;
         let currentFilterHours = 24;
 
         function getEmoji(price) {
@@ -168,20 +173,16 @@
             if (showLoading) showSkeleton();
 
             try {
-                const res = await fetch(
-                    `${SUPABASE_URL}/rest/v1/comed_prices?select=*&order=recorded_at.desc&limit=2000`,
-                    {
-                        headers: {
-                            apikey: SUPABASE_ANON_KEY,
-                            Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-                        }
-                    }
-                );
+                const { data, error } = await supabase
+                    .from('comed_prices')
+                    .select('*')
+                    .order('recorded_at', { ascending: false })
+                    .limit(2000);
 
-                if (!res.ok) throw new Error('Failed to fetch');
+                if (error) throw error;
 
-                allData = await res.json();
-                displayedCount = 5; // Reset to 5 when refreshing
+                allData = data;
+                displayedCount = 5;
 
                 if (allData.length === 0) {
                     document.getElementById('recent-list').innerHTML = '<div class="text-center py-8 text-zinc-500">No data yet</div>';
@@ -241,7 +242,7 @@
             document.getElementById('low-price').innerHTML = low.toFixed(1) + '¢';
 
             updateChart(filtered, hours);
-            displayedCount = 5; // Reset to 5 when changing filter
+            displayedCount = 5;
             renderRecentList(filtered);
         }
 
@@ -297,7 +298,6 @@
 
             const loadMoreBtn = document.getElementById('load-more-btn');
             loadMoreBtn.style.display = (filteredData.length > displayedCount) ? 'block' : 'none';
-
             document.getElementById('reading-count').innerHTML = `${filteredData.length} readings`;
         }
 
@@ -312,7 +312,7 @@
                 return (now - recordTime) <= hoursInMs;
             });
 
-            displayedCount += LOAD_MORE_AMOUNT; // Add 10 more
+            displayedCount += LOAD_MORE_AMOUNT;
             renderRecentList(filtered);
         }
 
