@@ -371,7 +371,6 @@
             return '🔴';
         }
 
-        // Format values that are already in dollars (supply, delivery, taxes, total)
         function formatDollarAmount(value) {
             if (value === null || value === undefined) return 'N/A';
             const num = parseFloat(value);
@@ -381,7 +380,6 @@
             return '$' + num.toFixed(2);
         }
 
-        // Format cent-based values (rates and diffs)
         function formatCents(value) {
             if (value === null || value === undefined) return 'N/A';
             return parseFloat(value).toFixed(1) + '¢';
@@ -418,7 +416,7 @@
                     .from('comed_prices')
                     .select('*')
                     .order('recorded_at', { ascending: false })
-                    .limit(2000);
+                    .limit(4000); // Increased for better 7d coverage
 
                 if (error) throw error;
 
@@ -566,7 +564,6 @@
             document.getElementById('modal-kwh').innerHTML = `${bill.total_kwh} kWh`;
             document.getElementById('modal-total').innerHTML = formatDollarAmount(bill.total_due);
             
-            // Dollar-based fields (already in $)
             document.getElementById('modal-supply').innerHTML = 
                 `${formatDollarAmount(bill.supply_amount)} (${formatCents(bill.supply_rate)}/kWh)`;
             document.getElementById('modal-delivery').innerHTML = 
@@ -758,7 +755,58 @@
             });
         }
 
-        function filterData(hours, updateActive = true) {
+        async function ensureEnoughDataForRange(hours) {
+            if (!window.supabaseClient) return;
+
+            const hoursInMs = hours * 60 * 60 * 1000;
+            const now = new Date();
+            const neededFrom = new Date(now.getTime() - hoursInMs);
+
+            if (allData.length === 0) {
+                await loadData(false);
+                return;
+            }
+
+            // Find oldest record
+            let oldestTimestamp = Infinity;
+            for (let i = 0; i < allData.length; i++) {
+                const ts = new Date(allData[i].recorded_at).getTime();
+                if (ts < oldestTimestamp) oldestTimestamp = ts;
+            }
+            const oldestWeHave = new Date(oldestTimestamp);
+
+            if (oldestWeHave <= neededFrom) {
+                return; // We have enough data
+            }
+
+            console.log(`[Smart Load] Fetching more data for ${hours}h range...`);
+
+            const { data, error } = await window.supabaseClient
+                .from('comed_prices')
+                .select('*')
+                .gte('recorded_at', neededFrom.toISOString())
+                .order('recorded_at', { ascending: false })
+                .limit(15000);
+
+            if (error) {
+                console.error('Error fetching additional data:', error);
+                return;
+            }
+
+            // Merge without duplicates
+            const existingIds = new Set(allData.map(d => d.id));
+            const newRecords = data.filter(d => !existingIds.has(d.id));
+
+            if (newRecords.length > 0) {
+                allData = [...newRecords, ...allData];
+                allData.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+                console.log(`[Smart Load] Added ${newRecords.length} more records for ${hours}h view.`);
+            }
+        }
+
+        async function filterData(hours, updateActive = true) {
+            await ensureEnoughDataForRange(hours);
+
             if (!allData.length) return;
             currentFilterHours = hours;
 
@@ -1024,7 +1072,6 @@
                 initPullToRefresh();
                 setInterval(() => loadData(false), 5 * 60 * 1000);
             } else {
-                // Keep trying until the deferred script is ready
                 setTimeout(initializeSupabase, 30);
             }
         }
