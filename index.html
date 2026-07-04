@@ -6,7 +6,7 @@
     <title>ComEd Pricing</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Supabase JS Client (with defer for safety) -->
+    <!-- Supabase JS Client with defer -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
     <link rel="manifest" href="manifest.json">
     <style>
@@ -142,9 +142,6 @@
         const SUPABASE_URL = 'https://qgasjpfbzjqlheexlouw.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYXNqcGZiempxbGhlZXhsb3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMzc2OTgsImV4cCI6MjA5ODYxMzY5OH0.cdZFeiMTV8zoQxgXI9-mLWNxmj9-r2eVoRZt9vfyaSk';
 
-        // Declare in global scope so loadData() can access it
-        let supabase;
-
         let chartInstance = null;
         let allData = [];
         let displayedCount = 5;
@@ -173,7 +170,13 @@
             if (showLoading) showSkeleton();
 
             try {
-                const { data, error } = await supabase
+                // Use the globally exposed client
+                const client = window.supabaseClient;
+                if (!client) {
+                    throw new Error('Supabase client not initialized');
+                }
+
+                const { data, error } = await client
                     .from('comed_prices')
                     .select('*')
                     .order('recorded_at', { ascending: false })
@@ -433,14 +436,21 @@
             });
         }
 
-        window.onload = () => {
-            // Initialize Supabase client (assign to the global 'supabase' variable)
-            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-            loadData();
-            initPullToRefresh();
-            setInterval(() => loadData(false), 5 * 60 * 1000);
-        };
+        // Initialize everything safely after DOM and external scripts are ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wait a tiny bit to ensure the deferred Supabase script has executed
+            setTimeout(() => {
+                if (window.supabase && window.supabase.createClient) {
+                    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                    loadData();
+                    initPullToRefresh();
+                    setInterval(() => loadData(false), 5 * 60 * 1000);
+                } else {
+                    console.error('Supabase client failed to load');
+                    document.getElementById('recent-list').innerHTML = '<div class="text-center py-8 text-red-400 text-sm">Failed to initialize Supabase</div>';
+                }
+            }, 50);
+        });
     </script>
 </body>
 </html>
