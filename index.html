@@ -154,6 +154,15 @@
             return '🔴';
         }
 
+        // Format price: under $1 shows as X.X¢, $1+ shows as $X.XX
+        function formatPrice(p) {
+            if (p >= 100) {
+                return '$' + (p / 100).toFixed(2);
+            } else {
+                return p.toFixed(1) + '¢';
+            }
+        }
+
         function showSkeleton() {
             document.getElementById('current-price').innerHTML = '<div class="h-16 w-44 bg-zinc-800 rounded-2xl skeleton"></div>';
             document.getElementById('current-emoji').innerHTML = '⏳';
@@ -170,11 +179,8 @@
             if (showLoading) showSkeleton();
 
             try {
-                // Use the globally exposed client
                 const client = window.supabaseClient;
-                if (!client) {
-                    throw new Error('Supabase client not initialized');
-                }
+                if (!client) throw new Error('Supabase client not ready');
 
                 const { data, error } = await client
                     .from('comed_prices')
@@ -223,26 +229,25 @@
                 return;
             }
 
-            // Current price
+            // Current price - use new formatter
             const latest = allData[0];
             const price = parseFloat(latest.price);
-            document.getElementById('current-price').innerHTML = 
-                `${price.toFixed(1)}<span class="text-4xl font-normal align-super">¢</span>`;
+            document.getElementById('current-price').innerHTML = formatPrice(price);
             document.getElementById('current-emoji').innerHTML = getEmoji(price);
             
             const recorded = new Date(latest.recorded_at);
             document.getElementById('current-time').innerHTML = 
                 `Updated ${recorded.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 
-            // Stats
+            // Stats - use formatter for consistency
             const prices = filtered.map(r => parseFloat(r.price));
             const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
             const high = Math.max(...prices);
             const low = Math.min(...prices);
 
-            document.getElementById('avg-price').innerHTML = avg.toFixed(1) + '¢';
-            document.getElementById('high-price').innerHTML = high.toFixed(1) + '¢';
-            document.getElementById('low-price').innerHTML = low.toFixed(1) + '¢';
+            document.getElementById('avg-price').innerHTML = formatPrice(avg);
+            document.getElementById('high-price').innerHTML = formatPrice(high);
+            document.getElementById('low-price').innerHTML = formatPrice(low);
 
             updateChart(filtered, hours);
             displayedCount = 5;
@@ -266,12 +271,14 @@
                 let leftContent;
                 let rightContent;
 
+                const priceDisplay = formatPrice(p);
+
                 if (isLongRange) {
                     leftContent = `
                         <div class="flex items-center gap-3.5">
                             <span class="text-3xl">${getEmoji(p)}</span>
                             <div>
-                                <div class="font-semibold text-xl tracking-tight price-value">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
+                                <div class="font-semibold text-xl tracking-tight price-value">${priceDisplay}</div>
                                 <div class="text-[10px] text-zinc-500 -mt-0.5">
                                     ${time.toLocaleDateString([], {month:'short', day:'numeric'})} · ${time.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}
                                 </div>
@@ -284,7 +291,7 @@
                         <div class="flex items-center gap-3.5">
                             <span class="text-3xl">${getEmoji(p)}</span>
                             <div>
-                                <div class="font-semibold text-xl tracking-tight price-value">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
+                                <div class="font-semibold text-xl tracking-tight price-value">${priceDisplay}</div>
                             </div>
                         </div>
                     `;
@@ -436,9 +443,7 @@
             });
         }
 
-        // Initialize everything safely after DOM and external scripts are ready
         document.addEventListener('DOMContentLoaded', () => {
-            // Wait a tiny bit to ensure the deferred Supabase script has executed
             setTimeout(() => {
                 if (window.supabase && window.supabase.createClient) {
                     window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
