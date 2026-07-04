@@ -24,7 +24,7 @@
 <body class="bg-zinc-950 text-white">
     <div class="max-w-md mx-auto min-h-screen pb-10 relative">
 
-        <!-- Header -->
+        <!-- Header + Tabs -->
         <div class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-800 px-6 py-4">
             <div class="flex items-center justify-between">
                 <div>
@@ -34,7 +34,6 @@
                 <button onclick="loadData(true)" class="px-4 h-9 bg-zinc-900 hover:bg-zinc-800 rounded-2xl text-sm font-medium border border-zinc-800">Refresh</button>
             </div>
 
-            <!-- Tabs -->
             <div class="flex mt-4 border-b border-zinc-800">
                 <button onclick="switchTab('live')" class="tab-button active flex-1 py-2 text-sm font-medium text-center border-b-2 border-emerald-500" id="tab-live">Live Prices</button>
                 <button onclick="switchTab('bills')" class="tab-button flex-1 py-2 text-sm font-medium text-center text-zinc-400" id="tab-bills">My Bills</button>
@@ -105,7 +104,7 @@
             </div>
         </div>
 
-        <!-- MY BILLS TAB (FULLY RESTORED) -->
+        <!-- MY BILLS TAB -->
         <div id="bills-tab-content" class="hidden">
             <div class="px-6 pt-6">
                 <!-- Coming Soon -->
@@ -272,25 +271,21 @@
 
             let filtered = allData;
 
-            // For 7d and 30d, ensure we have enough data
             if (hours > 24) {
                 const neededFrom = new Date(Date.now() - (hours * 60 * 60 * 1000));
-                const oldest = allData.length > 0 ? new Date(allData[allData.length-1].recorded_at) : new Date();
+                const { data } = await window.supabaseClient
+                    .from('comed_prices')
+                    .select('*')
+                    .gte('recorded_at', neededFrom.toISOString())
+                    .order('recorded_at', { ascending: false })
+                    .limit(15000);
 
-                if (oldest > neededFrom) {
-                    const { data } = await window.supabaseClient
-                        .from('comed_prices')
-                        .select('*')
-                        .gte('recorded_at', neededFrom.toISOString())
-                        .order('recorded_at', { ascending: false })
-                        .limit(15000);
-                    
-                    if (data && data.length > 0) {
-                        const ids = new Set(allData.map(r => r.id));
-                        const newRecords = data.filter(r => !ids.has(r.id));
-                        allData = [...newRecords, ...allData].sort((a,b) => new Date(b.recorded_at) - new Date(a.recorded_at));
-                    }
+                if (data && data.length > 0) {
+                    const ids = new Set(allData.map(r => r.id));
+                    const newRecords = data.filter(r => !ids.has(r.id));
+                    allData = [...newRecords, ...allData].sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
                 }
+
                 const cutoff = Date.now() - (hours * 60 * 60 * 1000);
                 filtered = allData.filter(r => new Date(r.recorded_at).getTime() >= cutoff);
             } else {
@@ -300,7 +295,6 @@
 
             if (filtered.length === 0) return;
 
-            // Update UI
             const latest = allData[0];
             const price = parseFloat(latest.price);
             document.getElementById('current-price').innerHTML = formatPrice(price);
@@ -348,7 +342,7 @@
                 const time = new Date(row.recorded_at);
                 const el = document.createElement('div');
                 el.className = `flex justify-between px-4 py-[13px] bg-zinc-900/70 border border-zinc-800 rounded-2xl`;
-                
+
                 if (isLong) {
                     el.innerHTML = `<div class="flex items-center gap-3"><span class="text-3xl">${getEmoji(p)}</span><div><div class="font-semibold text-xl">${formatPrice(p)}</div><div class="text-[10px] text-zinc-500">${time.toLocaleDateString([], {month:'short', day:'numeric'})} · ${time.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}</div></div></div>`;
                 } else {
@@ -389,7 +383,7 @@
             }
         }
 
-        // ==================== MY BILLS (FULLY RESTORED) ====================
+        // ==================== MY BILLS (FULLY WORKING) ====================
         async function loadBills() {
             try {
                 const client = window.supabaseClient;
@@ -482,9 +476,7 @@
                             <div class="font-semibold">${new Date(bill.service_start).toLocaleDateString([], {month:'short', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'short', day:'numeric'})}</div>
                             <div class="text-xs text-zinc-400">${bill.days} days • ${bill.total_kwh} kWh</div>
                         </div>
-                        <div class="text-right">
-                            <div class="font-semibold text-lg">${formatDollarAmount(bill.total_due)}</div>
-                        </div>
+                        <div class="text-right"><div class="font-semibold text-lg">${formatDollarAmount(bill.total_due)}</div></div>
                     </div>
                     <div class="grid grid-cols-3 gap-2 text-sm">
                         <div><div class="text-[10px] text-zinc-400">Effective Rate</div><div class="font-semibold">${formatCents(eff)}</div></div>
@@ -517,11 +509,80 @@
         }
 
         function renderSeasonRateChart(bills) {
-            // ... (same as previous working versions)
+            const ctx = document.getElementById('season-rate-chart');
+            if (seasonRateChart) seasonRateChart.destroy();
+
+            const seasons = ['spring', 'summer', 'fall', 'winter'];
+            const seasonData = {};
+
+            seasons.forEach(season => {
+                const seasonBills = bills.filter(b => b.billing_season === season);
+                seasonData[season] = seasonBills.length > 0 
+                    ? seasonBills.reduce((sum, b) => sum + parseFloat(b.effective_rate), 0) / seasonBills.length 
+                    : 0;
+            });
+
+            seasonRateChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Spring', 'Summer', 'Fall', 'Winter'],
+                    datasets: [{
+                        label: 'Avg Effective Rate (¢)',
+                        data: [seasonData.spring, seasonData.summer, seasonData.fall, seasonData.winter],
+                        backgroundColor: ['#10b981', '#f97316', '#f59e0b', '#0ea5e9'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } },
+                        y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
+                    }
+                }
+            });
         }
 
         function renderMonthlySpendChart(bills) {
-            // ... (same as previous working versions)
+            const ctx = document.getElementById('monthly-spend-chart');
+            if (monthlySpendChart) monthlySpendChart.destroy();
+
+            const monthlyData = {};
+            bills.forEach(bill => {
+                const key = new Date(bill.service_start).toLocaleDateString([], { month: 'short', year: '2-digit' });
+                if (!monthlyData[key]) monthlyData[key] = 0;
+                monthlyData[key] += parseFloat(bill.total_due);
+            });
+
+            const sortedKeys = Object.keys(monthlyData).sort((a, b) => {
+                const dateA = new Date('20' + a.split(' ')[1] + '-' + a.split(' ')[0]);
+                const dateB = new Date('20' + b.split(' ')[1] + '-' + b.split(' ')[0]);
+                return dateA - dateB;
+            });
+
+            monthlySpendChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedKeys,
+                    datasets: [{
+                        label: 'Total Spent ($)',
+                        data: sortedKeys.map(k => monthlyData[k]),
+                        backgroundColor: '#22c55e',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 9 } } },
+                        y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
+                    }
+                }
+            });
         }
 
         function initializeSupabase() {
