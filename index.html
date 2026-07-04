@@ -49,6 +49,14 @@
             font-weight: 600;
             letter-spacing: 0.5px;
         }
+        .tab-button {
+            transition: all 0.1s ease;
+        }
+        .tab-button.active {
+            background-color: #27272a;
+            color: white;
+            border-bottom: 2px solid #22c55e;
+        }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
@@ -64,114 +72,140 @@
         </div>
 
         <!-- Header -->
-        <div class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-semibold tracking-tight">ComEd</h1>
-                <p class="text-[10px] text-zinc-500 -mt-0.5">ELECTRICITY PRICING</p>
-            </div>
-            <button onclick="loadData(true)" 
-                    class="flex items-center gap-2 px-4 h-9 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 transition-colors rounded-2xl text-sm font-medium border border-zinc-800">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.058 11H1M12 3v2m0 16v2m9-9H15m-6 0a8.002 8.002 0 01-3.464-1.06" />
-                </svg>
-                <span>Refresh</span>
-            </button>
-        </div>
-
-        <!-- Current Price -->
-        <div class="px-6 pt-6">
-            <div id="current-card" class="glass border border-zinc-800 rounded-3xl p-6">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <div class="text-xs tracking-[1px] text-zinc-400 font-medium">NOW</div>
-                        <div id="current-price" class="text-[64px] leading-none font-semibold tracking-[-3.5px] mt-2 price-value">--</div>
-                        <div id="current-time" class="text-sm text-zinc-500 mt-1">Loading latest price...</div>
-                    </div>
-                    <div id="current-emoji" class="text-[72px] mt-1 transition-transform">⏳</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Stats -->
-        <div class="px-6 mt-6">
-            <div class="flex items-center justify-between px-1 mb-3">
-                <div class="text-xs uppercase tracking-widest text-zinc-400 font-medium">Last 24 Hours</div>
-            </div>
-            
-            <div class="grid grid-cols-3 gap-3 mb-4">
-                <div class="glass border border-zinc-800 rounded-2xl p-4">
-                    <div class="text-emerald-400 text-[10px] font-semibold tracking-wider">AVG</div>
-                    <div id="avg-price" class="text-3xl font-semibold tracking-tight mt-1 price-value">--</div>
-                </div>
-                <div class="glass border border-zinc-800 rounded-2xl p-4">
-                    <div class="text-red-400 text-[10px] font-semibold tracking-wider">HIGH</div>
-                    <div id="high-price" class="text-3xl font-semibold tracking-tight mt-1 price-value">--</div>
-                </div>
-                <div class="glass border border-zinc-800 rounded-2xl p-4">
-                    <div class="text-sky-400 text-[10px] font-semibold tracking-wider">LOW</div>
-                    <div id="low-price" class="text-3xl font-semibold tracking-tight mt-1 price-value">--</div>
-                </div>
-            </div>
-
-            <!-- Chart -->
-            <div class="glass border border-zinc-800 rounded-2xl p-4">
-                <canvas id="price-chart"></canvas>
-            </div>
-        </div>
-
-        <!-- Time Filters -->
-        <div class="px-6 mt-6">
-            <div class="flex items-center gap-2 px-1 mb-3 flex-wrap">
-                <span class="text-xs uppercase tracking-widest text-zinc-400 font-medium mr-1">Show</span>
-                <div class="flex flex-wrap gap-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-1 text-sm">
-                    <button onclick="filterData(6)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="6">6h</button>
-                    <button onclick="filterData(12)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="12">12h</button>
-                    <button onclick="filterData(24)" class="filter-btn active px-3 py-1 rounded-xl font-medium bg-white text-zinc-900" data-hours="24">24h</button>
-                    <button onclick="filterData(168)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="168">7d</button>
-                    <button onclick="filterData(720)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="720">30d</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Recent Readings -->
-        <div class="px-6 mt-2">
-            <div class="flex items-baseline justify-between px-1 mb-3">
-                <span class="text-sm font-semibold">Recent Readings</span>
-                <span id="reading-count" class="text-xs text-zinc-500"></span>
-            </div>
-
-            <div id="recent-list" class="space-y-[6px]">
-                <!-- Populated by JS -->
-            </div>
-
-            <button id="load-more-btn" 
-                    onclick="loadMore()"
-                    class="mt-4 w-full py-3 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 border border-zinc-800 rounded-2xl text-sm font-medium hidden">
-                Load More
-            </button>
-        </div>
-
-        <!-- ==================== MY BILLS SECTION ==================== -->
-        <div class="px-6 mt-8">
-            <div class="flex items-center justify-between px-1 mb-3">
+        <div class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-800 px-6 py-4">
+            <div class="flex items-center justify-between">
                 <div>
-                    <span class="text-sm font-semibold">My Bills</span>
-                    <span class="ml-2 text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full">Personal</span>
+                    <h1 class="text-2xl font-semibold tracking-tight">ComEd</h1>
+                    <p class="text-[10px] text-zinc-500 -mt-0.5">ELECTRICITY PRICING</p>
                 </div>
-                <span id="bill-count" class="text-xs text-zinc-500"></span>
+                <button onclick="loadData(true)" 
+                        class="flex items-center gap-2 px-4 h-9 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 transition-colors rounded-2xl text-sm font-medium border border-zinc-800">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.058 11H1M12 3v2m0 16v2m9-9H15m-6 0a8.002 8.002 0 01-3.464-1.06" />
+                    </svg>
+                    <span>Refresh</span>
+                </button>
             </div>
 
-            <div id="bills-list" class="space-y-3">
-                <!-- Populated by JS -->
+            <!-- Tabs -->
+            <div class="flex mt-4 border-b border-zinc-800">
+                <button onclick="switchTab('live')" 
+                        class="tab-button active flex-1 py-2 text-sm font-medium text-center border-b-2 border-emerald-500" id="tab-live">
+                    Live Prices
+                </button>
+                <button onclick="switchTab('bills')" 
+                        class="tab-button flex-1 py-2 text-sm font-medium text-center text-zinc-400" id="tab-bills">
+                    My Bills
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== LIVE PRICES TAB ==================== -->
+        <div id="live-tab-content">
+            <!-- Current Price -->
+            <div class="px-6 pt-6">
+                <div id="current-card" class="glass border border-zinc-800 rounded-3xl p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="text-xs tracking-[1px] text-zinc-400 font-medium">NOW</div>
+                            <div id="current-price" class="text-[64px] leading-none font-semibold tracking-[-3.5px] mt-2 price-value">--</div>
+                            <div id="current-time" class="text-sm text-zinc-500 mt-1">Loading latest price...</div>
+                        </div>
+                        <div id="current-emoji" class="text-[72px] mt-1 transition-transform">⏳</div>
+                    </div>
+                </div>
             </div>
 
-            <!-- Coming Soon: Upload your own PDFs -->
-            <div class="mt-4 p-4 border border-dashed border-zinc-700 rounded-2xl bg-zinc-900/50">
-                <div class="flex items-start gap-3">
-                    <div class="text-2xl mt-0.5">📄</div>
-                    <div class="flex-1">
-                        <div class="font-medium text-sm">Upload your own ComEd PDFs</div>
-                        <div class="text-xs text-zinc-400 mt-0.5">Coming soon. Analyze your bill history the same way.</div>
+            <!-- Stats -->
+            <div class="px-6 mt-6">
+                <div class="flex items-center justify-between px-1 mb-3">
+                    <div class="text-xs uppercase tracking-widest text-zinc-400 font-medium">Last 24 Hours</div>
+                </div>
+                
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <div class="glass border border-zinc-800 rounded-2xl p-4">
+                        <div class="text-emerald-400 text-[10px] font-semibold tracking-wider">AVG</div>
+                        <div id="avg-price" class="text-3xl font-semibold tracking-tight mt-1 price-value">--</div>
+                    </div>
+                    <div class="glass border border-zinc-800 rounded-2xl p-4">
+                        <div class="text-red-400 text-[10px] font-semibold tracking-wider">HIGH</div>
+                        <div id="high-price" class="text-3xl font-semibold tracking-tight mt-1 price-value">--</div>
+                    </div>
+                    <div class="glass border border-zinc-800 rounded-2xl p-4">
+                        <div class="text-sky-400 text-[10px] font-semibold tracking-wider">LOW</div>
+                        <div id="low-price" class="text-3xl font-semibold tracking-tight mt-1 price-value">--</div>
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                    <canvas id="price-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Time Filters -->
+            <div class="px-6 mt-6">
+                <div class="flex items-center gap-2 px-1 mb-3 flex-wrap">
+                    <span class="text-xs uppercase tracking-widest text-zinc-400 font-medium mr-1">Show</span>
+                    <div class="flex flex-wrap gap-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-1 text-sm">
+                        <button onclick="filterData(6)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="6">6h</button>
+                        <button onclick="filterData(12)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="12">12h</button>
+                        <button onclick="filterData(24)" class="filter-btn active px-3 py-1 rounded-xl font-medium bg-white text-zinc-900" data-hours="24">24h</button>
+                        <button onclick="filterData(168)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="168">7d</button>
+                        <button onclick="filterData(720)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="720">30d</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Readings -->
+            <div class="px-6 mt-2">
+                <div class="flex items-baseline justify-between px-1 mb-3">
+                    <span class="text-sm font-semibold">Recent Readings</span>
+                    <span id="reading-count" class="text-xs text-zinc-500"></span>
+                </div>
+
+                <div id="recent-list" class="space-y-[6px]">
+                    <!-- Populated by JS -->
+                </div>
+
+                <button id="load-more-btn" 
+                        onclick="loadMore()"
+                        class="mt-4 w-full py-3 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 border border-zinc-800 rounded-2xl text-sm font-medium hidden">
+                    Load More
+                </button>
+            </div>
+        </div>
+
+        <!-- ==================== MY BILLS TAB ==================== -->
+        <div id="bills-tab-content" class="hidden">
+            <div class="px-6 pt-6">
+                <div class="flex items-center justify-between px-1 mb-4">
+                    <div>
+                        <span class="text-lg font-semibold">My Bills</span>
+                        <span class="ml-2 text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full">Personal</span>
+                    </div>
+                    <span id="bill-count" class="text-xs text-zinc-500"></span>
+                </div>
+
+                <!-- Bills List -->
+                <div id="bills-list" class="space-y-3 mb-6">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Effective Rate Trend Chart -->
+                <div class="glass border border-zinc-800 rounded-2xl p-4 mb-6">
+                    <div class="text-sm font-semibold mb-3 px-1">Effective Rate Trend</div>
+                    <canvas id="effective-rate-chart"></canvas>
+                </div>
+
+                <!-- Coming Soon: Upload your own PDFs -->
+                <div class="p-4 border border-dashed border-zinc-700 rounded-2xl bg-zinc-900/50">
+                    <div class="flex items-start gap-3">
+                        <div class="text-2xl mt-0.5">📄</div>
+                        <div class="flex-1">
+                            <div class="font-medium text-sm">Upload your own ComEd PDFs</div>
+                            <div class="text-xs text-zinc-400 mt-0.5">Coming soon. Analyze your bill history the same way.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -184,10 +218,13 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYXNqcGZiempxbGhlZXhsb3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMzc2OTgsImV4cCI6MjA5ODYxMzY5OH0.cdZFeiMTV8zoQxgXI9-mLWNxmj9-r2eVoRZt9vfyaSk';
 
         let chartInstance = null;
+        let effectiveRateChart = null;
         let allData = [];
+        let billsData = [];
         let displayedCount = 5;
         const LOAD_MORE_AMOUNT = 10;
         let currentFilterHours = 24;
+        let currentTab = 'live';
 
         function getEmoji(price) {
             if (price <= 8.0) return '🟢';
@@ -258,7 +295,9 @@
 
                 if (error) throw error;
 
+                billsData = data;
                 renderBillsList(data);
+                renderEffectiveRateChart(data);
             } catch (err) {
                 console.error('Error loading bills:', err);
                 document.getElementById('bills-list').innerHTML = 
@@ -328,6 +367,64 @@
                 `;
 
                 container.appendChild(el);
+            });
+        }
+
+        function renderEffectiveRateChart(bills) {
+            const ctx = document.getElementById('effective-rate-chart');
+            if (effectiveRateChart) effectiveRateChart.destroy();
+
+            // Sort by date ascending for the chart
+            const sortedBills = [...bills].sort((a, b) => new Date(a.service_start) - new Date(b.service_start));
+
+            const labels = sortedBills.map(b => 
+                new Date(b.service_start).toLocaleDateString([], { month: 'short', year: '2-digit' })
+            );
+
+            const effectiveRates = sortedBills.map(b => parseFloat(b.effective_rate));
+            const marketRates = sortedBills.map(b => parseFloat(b.avg_price_during_period));
+
+            effectiveRateChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Your Effective Rate (¢)',
+                            data: effectiveRates,
+                            borderColor: '#22c55e',
+                            borderWidth: 2.5,
+                            tension: 0.3,
+                            pointRadius: 3,
+                            fill: false
+                        },
+                        {
+                            label: 'Market Average (¢)',
+                            data: marketRates,
+                            borderColor: '#64748b',
+                            borderWidth: 2,
+                            borderDash: [3, 3],
+                            tension: 0.3,
+                            pointRadius: 2,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        legend: { 
+                            display: true,
+                            position: 'top',
+                            labels: { font: { size: 10 }, color: '#71717a' }
+                        } 
+                    },
+                    scales: {
+                        x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 9 } } },
+                        y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
+                    }
+                }
             });
         }
 
@@ -502,6 +599,27 @@
             });
         }
 
+        function switchTab(tab) {
+            currentTab = tab;
+
+            const liveContent = document.getElementById('live-tab-content');
+            const billsContent = document.getElementById('bills-tab-content');
+            const liveTab = document.getElementById('tab-live');
+            const billsTab = document.getElementById('tab-bills');
+
+            if (tab === 'live') {
+                liveContent.classList.remove('hidden');
+                billsContent.classList.add('hidden');
+                liveTab.classList.add('active');
+                billsTab.classList.remove('active');
+            } else {
+                liveContent.classList.add('hidden');
+                billsContent.classList.remove('hidden');
+                liveTab.classList.remove('active');
+                billsTab.classList.add('active');
+            }
+        }
+
         function initPullToRefresh() {
             const indicator = document.getElementById('pull-indicator');
             const pullText = document.getElementById('pull-text');
@@ -570,7 +688,6 @@
                 if (window.supabase && window.supabase.createClient) {
                     window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
                     
-                    // Load both live prices and bills
                     loadData();
                     loadBills();
                     
