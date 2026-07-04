@@ -37,6 +37,7 @@
         }
         .bill-card {
             transition: transform 0.1s ease, box-shadow 0.1s ease;
+            cursor: pointer;
         }
         .bill-card:hover {
             transform: translateY(-1px);
@@ -67,6 +68,13 @@
             background-color: #22c55e;
             color: #111827;
             font-weight: 600;
+        }
+        .modal {
+            animation: fadeInScale 0.2s ease forwards;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
         }
     </style>
 </head>
@@ -251,8 +259,8 @@
                         <button onclick="filterBillsBySeason('winter')" class="filter-chip px-3 py-1 text-xs rounded-full bg-sky-500/10 text-sky-400 hover:bg-sky-500/20" id="season-winter">Winter</button>
                     </div>
 
-                    <!-- Year + Sort -->
-                    <div class="flex gap-2">
+                    <!-- Year + Sort + Reset -->
+                    <div class="flex gap-2 items-center">
                         <select id="year-filter" onchange="applyBillFilters()" class="flex-1 bg-zinc-900 border border-zinc-700 text-sm rounded-xl px-3 py-2 text-white">
                             <option value="all">All Years</option>
                         </select>
@@ -265,6 +273,11 @@
                             <option value="spent-desc">Highest Total Spent</option>
                             <option value="spent-asc">Lowest Total Spent</option>
                         </select>
+
+                        <button onclick="resetBillFilters()" 
+                                class="px-3 py-2 text-xs bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-xl border border-zinc-700">
+                            Reset
+                        </button>
                     </div>
                 </div>
 
@@ -273,6 +286,64 @@
                     <!-- Populated by JS -->
                 </div>
 
+            </div>
+        </div>
+
+        <!-- Bill Detail Modal -->
+        <div id="bill-modal" onclick="closeBillModal()" class="hidden fixed inset-0 bg-black/70 flex items-end justify-center z-[100]">
+            <div onclick="event.stopImmediatePropagation()" class="glass w-full max-w-md rounded-t-3xl p-6 border-t border-zinc-700">
+                <div class="flex justify-between items-center mb-4">
+                    <div class="font-semibold text-lg" id="modal-period"></div>
+                    <button onclick="closeBillModal()" class="text-zinc-400 hover:text-white text-2xl leading-none">&times;</button>
+                </div>
+
+                <div class="space-y-4 text-sm">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <div class="text-zinc-400 text-xs">Total kWh</div>
+                            <div id="modal-kwh" class="font-semibold text-xl"></div>
+                        </div>
+                        <div>
+                            <div class="text-zinc-400 text-xs">Total Due</div>
+                            <div id="modal-total" class="font-semibold text-xl"></div>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-zinc-700 pt-4 space-y-3">
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Supply (Energy)</span>
+                            <span id="modal-supply" class="font-medium"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Delivery (Wires)</span>
+                            <span id="modal-delivery" class="font-medium"></span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-zinc-400">Taxes &amp; Fees</span>
+                            <span id="modal-taxes" class="font-medium"></span>
+                        </div>
+                    </div>
+
+                    <div class="border-t border-zinc-700 pt-4">
+                        <div class="flex justify-between items-center">
+                            <span class="text-zinc-400">Effective Rate</span>
+                            <span id="modal-effective" class="font-semibold text-lg"></span>
+                        </div>
+                        <div class="flex justify-between items-center mt-1">
+                            <span class="text-zinc-400 text-xs">vs Market Average</span>
+                            <span id="modal-diff" class="text-sm font-medium"></span>
+                        </div>
+                    </div>
+
+                    <div id="modal-season-credits" class="flex gap-2 pt-2">
+                        <!-- Badges injected via JS -->
+                    </div>
+                </div>
+
+                <button onclick="closeBillModal()" 
+                        class="mt-6 w-full py-3 bg-zinc-800 hover:bg-zinc-700 rounded-2xl text-sm font-medium">
+                    Close
+                </button>
             </div>
         </div>
 
@@ -382,7 +453,6 @@
             const select = document.getElementById('year-filter');
             const years = [...new Set(bills.map(b => new Date(b.service_start).getFullYear()))].sort((a, b) => b - a);
             
-            // Clear existing options except first
             while (select.options.length > 1) select.remove(1);
             
             years.forEach(year => {
@@ -396,7 +466,6 @@
         function filterBillsBySeason(season) {
             currentSeasonFilter = season;
             
-            // Update active chip
             document.querySelectorAll('[id^="season-"]').forEach(el => el.classList.remove('active'));
             document.getElementById(`season-${season}`).classList.add('active');
             
@@ -409,17 +478,14 @@
             
             let result = [...billsData];
             
-            // Season filter
             if (currentSeasonFilter !== 'all') {
                 result = result.filter(b => b.billing_season === currentSeasonFilter);
             }
             
-            // Year filter
             if (yearFilter !== 'all') {
                 result = result.filter(b => new Date(b.service_start).getFullYear() == yearFilter);
             }
             
-            // Sorting
             switch (sortFilter) {
                 case 'date-desc':
                     result.sort((a, b) => new Date(b.service_start) - new Date(a.service_start));
@@ -445,6 +511,18 @@
             renderBillsList(filteredBills);
         }
 
+        function resetBillFilters() {
+            currentSeasonFilter = 'all';
+            document.getElementById('year-filter').value = 'all';
+            document.getElementById('sort-filter').value = 'date-desc';
+            
+            document.querySelectorAll('[id^="season-"]').forEach(el => el.classList.remove('active'));
+            document.getElementById('season-all').classList.add('active');
+            
+            filteredBills = [...billsData];
+            renderBillsList(filteredBills);
+        }
+
         function renderSummaryStats(bills) {
             if (!bills || bills.length === 0) return;
 
@@ -462,6 +540,58 @@
             diffEl.className = `text-3xl font-semibold mt-1 ${avgDiff > 0 ? 'text-red-400' : 'text-emerald-400'}`;
         }
 
+        function showBillModal(bill) {
+            const modal = document.getElementById('bill-modal');
+            
+            document.getElementById('modal-period').innerHTML = 
+                `${new Date(bill.service_start).toLocaleDateString([], {month:'long', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'long', day:'numeric'})}`;
+            
+            document.getElementById('modal-kwh').innerHTML = `${bill.total_kwh} kWh`;
+            document.getElementById('modal-total').innerHTML = formatPrice(bill.total_due * 100);
+            
+            document.getElementById('modal-supply').innerHTML = `${formatPrice(bill.supply_amount * 100)} (${bill.supply_rate}¢/kWh)`;
+            document.getElementById('modal-delivery').innerHTML = `${formatPrice(bill.delivery_amount * 100)} (${bill.delivery_rate}¢/kWh)`;
+            document.getElementById('modal-taxes').innerHTML = formatPrice(bill.taxes_fees_amount * 100);
+            
+            document.getElementById('modal-effective').innerHTML = formatPrice(bill.effective_rate * 100);
+            
+            const diffEl = document.getElementById('modal-diff');
+            const diff = parseFloat(bill.market_vs_paid_diff);
+            diffEl.innerHTML = `${diff > 0 ? '+' : ''}${diff.toFixed(2)}¢ vs market`;
+            diffEl.className = `text-sm font-medium ${diff > 0 ? 'text-red-400' : 'text-emerald-400'}`;
+
+            // Season + Credits badges
+            const badgesContainer = document.getElementById('modal-season-credits');
+            badgesContainer.innerHTML = '';
+            
+            let seasonColor = 'bg-zinc-700 text-zinc-300';
+            if (bill.billing_season === 'summer') seasonColor = 'bg-orange-500/10 text-orange-400';
+            if (bill.billing_season === 'winter') seasonColor = 'bg-sky-500/10 text-sky-400';
+            if (bill.billing_season === 'spring') seasonColor = 'bg-emerald-500/10 text-emerald-400';
+            if (bill.billing_season === 'fall') seasonColor = 'bg-amber-500/10 text-amber-400';
+            
+            const seasonBadge = document.createElement('span');
+            seasonBadge.className = `season-badge ${seasonColor}`;
+            seasonBadge.textContent = bill.billing_season;
+            badgesContainer.appendChild(seasonBadge);
+
+            if (bill.has_credits) {
+                const creditBadge = document.createElement('span');
+                creditBadge.className = 'text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full';
+                creditBadge.textContent = 'Credits Applied';
+                badgesContainer.appendChild(creditBadge);
+            }
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        function closeBillModal() {
+            const modal = document.getElementById('bill-modal');
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }
+
         function renderBillsList(bills) {
             const container = document.getElementById('bills-list');
             container.innerHTML = '';
@@ -476,6 +606,7 @@
             bills.forEach(bill => {
                 const el = document.createElement('div');
                 el.className = `bill-card glass border border-zinc-800 rounded-2xl p-4`;
+                el.onclick = () => showBillModal(bill);
 
                 const effective = parseFloat(bill.effective_rate) || 0;
                 const marketAvg = parseFloat(bill.avg_price_during_period) || 0;
@@ -597,7 +728,7 @@
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
+                    maintainAspectRatio: false;
                     plugins: { legend: { display: false } },
                     scales: {
                         x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 9 } } },
@@ -755,7 +886,7 @@
             chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: labels;
                     datasets: [{
                         label: 'Price (¢)',
                         data: prices,
