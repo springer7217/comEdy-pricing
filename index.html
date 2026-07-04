@@ -560,7 +560,6 @@
             diffEl.innerHTML = `${diff > 0 ? '+' : ''}${diff.toFixed(2)}¢ vs market`;
             diffEl.className = `text-sm font-medium ${diff > 0 ? 'text-red-400' : 'text-emerald-400'}`;
 
-            // Season + Credits badges
             const badgesContainer = document.getElementById('modal-season-credits');
             badgesContainer.innerHTML = '';
             
@@ -728,7 +727,7 @@
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false;
+                    maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
                         x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 9 } } },
@@ -886,7 +885,7 @@
             chartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: labels;
+                    labels: labels,
                     datasets: [{
                         label: 'Price (¢)',
                         data: prices,
@@ -993,22 +992,23 @@
             });
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            setTimeout(() => {
-                if (window.supabase && window.supabase.createClient) {
-                    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-                    
-                    loadData();
-                    loadBills();
-                    
-                    initPullToRefresh();
-                    setInterval(() => loadData(false), 5 * 60 * 1000);
-                } else {
-                    console.error('Supabase client failed to load');
-                    document.getElementById('recent-list').innerHTML = '<div class="text-center py-8 text-red-400 text-sm">Failed to initialize Supabase</div>';
-                }
-            }, 50);
-        });
+        // Robust Supabase initialization
+        function initializeSupabase() {
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                
+                loadData();
+                loadBills();
+                
+                initPullToRefresh();
+                setInterval(() => loadData(false), 5 * 60 * 1000);
+            } else {
+                // Keep trying until the deferred script is ready
+                setTimeout(initializeSupabase, 30);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initializeSupabase);
     </script>
 </body>
 </html>
