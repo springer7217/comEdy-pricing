@@ -1,1 +1,147 @@
-UPDATED_INDEX_HTML_WITH_MAIN_LANDMARK
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComEd Pricing</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-white">
+    
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-800">
+        <div class="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight">ComEd</h1>
+                <p class="text-[10px] text-zinc-400 -mt-0.5">ELECTRICITY PRICING</p>
+            </div>
+            <button onclick="loadData(true)" 
+                    class="flex items-center gap-2 px-4 h-9 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 transition-colors rounded-2xl text-sm font-medium border border-zinc-800">
+                <span>Refresh</span>
+            </button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="max-w-md mx-auto px-6 pt-2">
+            <div class="flex border-b border-zinc-800">
+                <button onclick="switchTab('live')" id="tab-live"
+                        class="tab-button flex-1 py-3 text-sm font-medium text-center active">
+                    Live Prices
+                </button>
+                <button onclick="switchTab('bills')" id="tab-bills"
+                        class="tab-button flex-1 py-3 text-sm font-medium text-center text-zinc-400">
+                    My Bills
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-md mx-auto">
+        
+        <!-- Live Prices Tab -->
+        <div id="live-tab-content">
+            <!-- Current Price -->
+            <div class="px-6 pt-6">
+                <div id="current-card" class="glass border border-zinc-800 rounded-3xl p-6">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="text-xs tracking-[1px] text-zinc-400 font-medium">NOW</div>
+                            <div id="current-price" class="text-[64px] leading-none font-semibold tracking-[-3.5px] mt-2">--</div>
+                            <div id="current-time" class="text-sm text-zinc-400 mt-1">Loading latest price...</div>
+                        </div>
+                        <div id="current-emoji" class="text-[72px] mt-1">⏳</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="px-6 mt-6">
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="glass border border-zinc-800 rounded-2xl p-4">
+                        <div class="text-emerald-400 text-[10px] font-semibold tracking-wider">AVG</div>
+                        <div id="avg-price" class="text-3xl font-semibold mt-1">--</div>
+                    </div>
+                    <div class="glass border border-zinc-800 rounded-2xl p-4">
+                        <div class="text-red-400 text-[10px] font-semibold tracking-wider">HIGH</div>
+                        <div id="high-price" class="text-3xl font-semibold mt-1">--</div>
+                    </div>
+                    <div class="glass border border-zinc-800 rounded-2xl p-4">
+                        <div class="text-sky-400 text-[10px] font-semibold tracking-wider">LOW</div>
+                        <div id="low-price" class="text-3xl font-semibold mt-1">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chart -->
+            <div class="px-6 mt-6">
+                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                    <canvas id="price-chart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Readings -->
+            <div class="px-6 mt-6">
+                <div class="flex items-baseline justify-between px-1 mb-3">
+                    <span class="text-sm font-semibold">Recent Readings</span>
+                    <span id="reading-count" class="text-xs text-zinc-500"></span>
+                </div>
+                <div id="recent-list" class="space-y-[6px]"></div>
+                <button id="load-more-btn" onclick="loadMore()" 
+                        class="mt-4 w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-sm font-medium hidden">
+                    Load More
+                </button>
+            </div>
+        </div>
+
+        <!-- My Bills Tab -->
+        <div id="bills-tab-content" class="hidden px-6">
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-2 gap-3 mt-6">
+                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                    <div class="text-xs text-zinc-400">TOTAL BILLS</div>
+                    <div id="total-bills" class="text-3xl font-semibold mt-1">--</div>
+                </div>
+                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                    <div class="text-xs text-zinc-400">TOTAL SPENT</div>
+                    <div id="total-spent" class="text-3xl font-semibold mt-1">--</div>
+                </div>
+                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                    <div class="text-xs text-zinc-400">AVG EFFECTIVE RATE</div>
+                    <div id="avg-effective-rate" class="text-3xl font-semibold mt-1">--</div>
+                </div>
+                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                    <div class="text-xs text-zinc-400">AVG VS MARKET</div>
+                    <div id="avg-vs-market" class="text-3xl font-semibold mt-1">--</div>
+                </div>
+            </div>
+
+            <!-- Bill List -->
+            <div class="mt-6">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-semibold">Bill History</span>
+                    <span id="bill-count" class="text-xs text-zinc-500"></span>
+                </div>
+                <div id="bills-list" class="space-y-3"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Bill Modal -->
+    <div id="bill-modal" onclick="closeBillModal()" class="hidden fixed inset-0 bg-black/70 flex items-end justify-center z-[100]">
+        <div onclick="event.stopImmediatePropagation()" class="glass w-full max-w-md rounded-t-3xl p-6">
+            <div class="flex justify-between mb-4">
+                <div class="font-semibold text-lg" id="modal-period"></div>
+                <button onclick="closeBillModal()" class="text-2xl">&times;</button>
+            </div>
+            <div id="modal-content">
+                <!-- Populated by JavaScript -->
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
