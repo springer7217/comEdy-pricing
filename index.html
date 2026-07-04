@@ -57,6 +57,9 @@
             color: white;
             border-bottom: 2px solid #22c55e;
         }
+        .stat-card {
+            transition: transform 0.1s ease;
+        }
     </style>
 </head>
 <body class="bg-zinc-950 text-white">
@@ -179,27 +182,9 @@
         <!-- ==================== MY BILLS TAB ==================== -->
         <div id="bills-tab-content" class="hidden">
             <div class="px-6 pt-6">
-                <div class="flex items-center justify-between px-1 mb-4">
-                    <div>
-                        <span class="text-lg font-semibold">My Bills</span>
-                        <span class="ml-2 text-[10px] px-2 py-0.5 bg-emerald-500/10 text-emerald-400 rounded-full">Personal</span>
-                    </div>
-                    <span id="bill-count" class="text-xs text-zinc-500"></span>
-                </div>
 
-                <!-- Bills List -->
-                <div id="bills-list" class="space-y-3 mb-6">
-                    <!-- Populated by JS -->
-                </div>
-
-                <!-- Effective Rate Trend Chart -->
-                <div class="glass border border-zinc-800 rounded-2xl p-4 mb-6">
-                    <div class="text-sm font-semibold mb-3 px-1">Effective Rate Trend</div>
-                    <canvas id="effective-rate-chart"></canvas>
-                </div>
-
-                <!-- Coming Soon: Upload your own PDFs -->
-                <div class="p-4 border border-dashed border-zinc-700 rounded-2xl bg-zinc-900/50">
+                <!-- Coming Soon Upload -->
+                <div class="mb-6 p-4 border border-dashed border-zinc-700 rounded-2xl bg-zinc-900/50">
                     <div class="flex items-start gap-3">
                         <div class="text-2xl mt-0.5">📄</div>
                         <div class="flex-1">
@@ -208,6 +193,52 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Summary Scorecards -->
+                <div class="grid grid-cols-2 gap-3 mb-6">
+                    <div class="glass border border-zinc-800 rounded-2xl p-4 stat-card">
+                        <div class="text-[10px] text-zinc-400 tracking-wider">TOTAL BILLS</div>
+                        <div id="total-bills" class="text-3xl font-semibold mt-1">--</div>
+                    </div>
+                    <div class="glass border border-zinc-800 rounded-2xl p-4 stat-card">
+                        <div class="text-[10px] text-zinc-400 tracking-wider">TOTAL SPENT</div>
+                        <div id="total-spent" class="text-3xl font-semibold mt-1">--</div>
+                    </div>
+                    <div class="glass border border-zinc-800 rounded-2xl p-4 stat-card">
+                        <div class="text-[10px] text-zinc-400 tracking-wider">AVG EFFECTIVE RATE</div>
+                        <div id="avg-effective-rate" class="text-3xl font-semibold mt-1">--</div>
+                    </div>
+                    <div class="glass border border-zinc-800 rounded-2xl p-4 stat-card">
+                        <div class="text-[10px] text-zinc-400 tracking-wider">AVG VS MARKET</div>
+                        <div id="avg-vs-market" class="text-3xl font-semibold mt-1">--</div>
+                    </div>
+                </div>
+
+                <!-- Bills List -->
+                <div class="mb-3 px-1 flex items-center justify-between">
+                    <span class="text-sm font-semibold">Bill History</span>
+                    <span id="bill-count" class="text-xs text-zinc-500"></span>
+                </div>
+
+                <div id="bills-list" class="space-y-3 mb-6">
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Charts -->
+                <div class="space-y-6">
+                    <!-- Effective Rate by Season -->
+                    <div class="glass border border-zinc-800 rounded-2xl p-4">
+                        <div class="text-sm font-semibold mb-3 px-1">Effective Rate by Season</div>
+                        <canvas id="season-rate-chart"></canvas>
+                    </div>
+
+                    <!-- Monthly Total Spend -->
+                    <div class="glass border border-zinc-800 rounded-2xl p-4">
+                        <div class="text-sm font-semibold mb-3 px-1">Monthly Total Spend</div>
+                        <canvas id="monthly-spend-chart"></canvas>
+                    </div>
+                </div>
+
             </div>
         </div>
 
@@ -218,7 +249,8 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFnYXNqcGZiempxbGhlZXhsb3V3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODMwMzc2OTgsImV4cCI6MjA5ODYxMzY5OH0.cdZFeiMTV8zoQxgXI9-mLWNxmj9-r2eVoRZt9vfyaSk';
 
         let chartInstance = null;
-        let effectiveRateChart = null;
+        let seasonRateChart = null;
+        let monthlySpendChart = null;
         let allData = [];
         let billsData = [];
         let displayedCount = 5;
@@ -297,12 +329,32 @@
 
                 billsData = data;
                 renderBillsList(data);
-                renderEffectiveRateChart(data);
+                renderSummaryStats(data);
+                renderSeasonRateChart(data);
+                renderMonthlySpendChart(data);
             } catch (err) {
                 console.error('Error loading bills:', err);
                 document.getElementById('bills-list').innerHTML = 
                     '<div class="text-center py-6 text-red-400 text-sm">Could not load bill history</div>';
             }
+        }
+
+        function renderSummaryStats(bills) {
+            if (!bills || bills.length === 0) return;
+
+            const totalBills = bills.length;
+            const totalSpent = bills.reduce((sum, b) => sum + parseFloat(b.total_due), 0);
+            const avgEffective = bills.reduce((sum, b) => sum + parseFloat(b.effective_rate), 0) / totalBills;
+            
+            const avgDiff = bills.reduce((sum, b) => sum + parseFloat(b.market_vs_paid_diff), 0) / totalBills;
+
+            document.getElementById('total-bills').innerHTML = totalBills;
+            document.getElementById('total-spent').innerHTML = '$' + totalSpent.toFixed(0);
+            document.getElementById('avg-effective-rate').innerHTML = avgEffective.toFixed(1) + '¢';
+            
+            const diffEl = document.getElementById('avg-vs-market');
+            diffEl.innerHTML = (avgDiff > 0 ? '+' : '') + avgDiff.toFixed(1) + '¢';
+            diffEl.className = `text-3xl font-semibold mt-1 ${avgDiff > 0 ? 'text-red-400' : 'text-emerald-400'}`;
         }
 
         function renderBillsList(bills) {
@@ -370,56 +422,79 @@
             });
         }
 
-        function renderEffectiveRateChart(bills) {
-            const ctx = document.getElementById('effective-rate-chart');
-            if (effectiveRateChart) effectiveRateChart.destroy();
+        function renderSeasonRateChart(bills) {
+            const ctx = document.getElementById('season-rate-chart');
+            if (seasonRateChart) seasonRateChart.destroy();
 
-            // Sort by date ascending for the chart
-            const sortedBills = [...bills].sort((a, b) => new Date(a.service_start) - new Date(b.service_start));
+            const seasons = ['spring', 'summer', 'fall', 'winter'];
+            const seasonData = {};
 
-            const labels = sortedBills.map(b => 
-                new Date(b.service_start).toLocaleDateString([], { month: 'short', year: '2-digit' })
-            );
+            seasons.forEach(season => {
+                const seasonBills = bills.filter(b => b.billing_season === season);
+                if (seasonBills.length > 0) {
+                    seasonData[season] = seasonBills.reduce((sum, b) => sum + parseFloat(b.effective_rate), 0) / seasonBills.length;
+                } else {
+                    seasonData[season] = 0;
+                }
+            });
 
-            const effectiveRates = sortedBills.map(b => parseFloat(b.effective_rate));
-            const marketRates = sortedBills.map(b => parseFloat(b.avg_price_during_period));
-
-            effectiveRateChart = new Chart(ctx, {
-                type: 'line',
+            seasonRateChart = new Chart(ctx, {
+                type: 'bar',
                 data: {
-                    labels: labels,
-                    datasets: [
-                        {
-                            label: 'Your Effective Rate (¢)',
-                            data: effectiveRates,
-                            borderColor: '#22c55e',
-                            borderWidth: 2.5,
-                            tension: 0.3,
-                            pointRadius: 3,
-                            fill: false
-                        },
-                        {
-                            label: 'Market Average (¢)',
-                            data: marketRates,
-                            borderColor: '#64748b',
-                            borderWidth: 2,
-                            borderDash: [3, 3],
-                            tension: 0.3,
-                            pointRadius: 2,
-                            fill: false
-                        }
-                    ]
+                    labels: ['Spring', 'Summer', 'Fall', 'Winter'],
+                    datasets: [{
+                        label: 'Avg Effective Rate (¢)',
+                        data: [seasonData.spring, seasonData.summer, seasonData.fall, seasonData.winter],
+                        backgroundColor: ['#10b981', '#f97316', '#f59e0b', '#0ea5e9'],
+                        borderRadius: 6
+                    }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { 
-                        legend: { 
-                            display: true,
-                            position: 'top',
-                            labels: { font: { size: 10 }, color: '#71717a' }
-                        } 
-                    },
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } },
+                        y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        function renderMonthlySpendChart(bills) {
+            const ctx = document.getElementById('monthly-spend-chart');
+            if (monthlySpendChart) monthlySpendChart.destroy();
+
+            // Group by month
+            const monthlyData = {};
+            bills.forEach(bill => {
+                const date = new Date(bill.service_start);
+                const key = date.toLocaleDateString([], { month: 'short', year: '2-digit' });
+                if (!monthlyData[key]) monthlyData[key] = 0;
+                monthlyData[key] += parseFloat(bill.total_due);
+            });
+
+            const sortedKeys = Object.keys(monthlyData).sort((a, b) => {
+                const dateA = new Date('20' + a.split(' ')[1] + '-' + a.split(' ')[0]);
+                const dateB = new Date('20' + b.split(' ')[1] + '-' + b.split(' ')[0]);
+                return dateA - dateB;
+            });
+
+            monthlySpendChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedKeys,
+                    datasets: [{
+                        label: 'Total Spent ($)',
+                        data: sortedKeys.map(k => monthlyData[k]),
+                        backgroundColor: '#22c55e',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
                     scales: {
                         x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 9 } } },
                         y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
