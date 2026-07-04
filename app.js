@@ -10,15 +10,21 @@ const LOAD_MORE_AMOUNT = 10;
 let currentFilterHours = 24;
 let priceChart = null;
 
-// ==================== IMPROVED SLOT MACHINE ANIMATION ====================
-function animateSlotNumber(element, targetValue, duration = 1200) {
+// ==================== FIXED SLOT MACHINE ANIMATION ====================
+function animateSlotNumber(element, targetValue, duration = 900) {
     if (!element) return;
 
-    const finalStr = String(targetValue);
+    // Clear previous content completely
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
 
-    // Split numeric part and suffix (e.g. "3.3" + "¢")
+    const finalStr = String(targetValue);
+    const container = document.createElement('span');
+    container.style.display = 'inline-flex';
+    container.style.alignItems = 'flex-end';
+    container.style.gap = '1px';
+
+    // Split number and suffix
     const match = finalStr.match(/^([\d.]+)(.*)$/);
     if (!match) {
         element.textContent = finalStr;
@@ -28,12 +34,6 @@ function animateSlotNumber(element, targetValue, duration = 1200) {
     const numericPart = match[1];
     const suffix = match[2] || '';
 
-    const container = document.createElement('span');
-    container.style.display = 'inline-flex';
-    container.style.alignItems = 'flex-end';
-    container.style.gap = '1px';
-
-    // Animate each digit
     numericPart.split('').forEach((char, index) => {
         if (char === '.') {
             const dot = document.createElement('span');
@@ -47,22 +47,20 @@ function animateSlotNumber(element, targetValue, duration = 1200) {
         reelWrapper.style.overflow = 'hidden';
         reelWrapper.style.display = 'inline-block';
         reelWrapper.style.height = '1em';
-        reelWrapper.style.width = '0.55em';
+        reelWrapper.style.width = '0.52em';
         reelWrapper.style.position = 'relative';
-        reelWrapper.style.verticalAlign = 'bottom';
 
         const reel = document.createElement('div');
         reel.style.position = 'absolute';
         reel.style.top = '0';
         reel.style.left = '0';
-        reel.style.transition = `transform ${duration}ms cubic-bezier(0.23, 1, 0.32, 1)`;
-        reel.style.willChange = 'transform';
+        reel.style.transition = `transform ${duration}ms cubic-bezier(0.23, 1.0, 0.32, 1)`;
 
         let stripHTML = '';
         const sets = 3;
         for (let s = 0; s < sets; s++) {
             for (let d = 0; d <= 9; d++) {
-                stripHTML += `<div style="height:1em; line-height:1em; text-align:center;">${d}</div>`;
+                stripHTML += `<div style="height:1em; line-height:1em; text-align:center; font-size: inherit;">${d}</div>`;
             }
         }
         reel.innerHTML = stripHTML;
@@ -78,15 +76,14 @@ function animateSlotNumber(element, targetValue, duration = 1200) {
 
         setTimeout(() => {
             reel.style.transform = `translateY(${finalTranslateY}em)`;
-        }, 30 + (index * 50));
+        }, 25 + (index * 45));
     });
 
-    // Add suffix (¢, $, etc.)
     if (suffix) {
-        const suffixSpan = document.createElement('span');
-        suffixSpan.textContent = suffix;
-        suffixSpan.style.marginLeft = '1px';
-        container.appendChild(suffixSpan);
+        const suffixEl = document.createElement('span');
+        suffixEl.textContent = suffix;
+        suffixEl.style.marginLeft = '2px';
+        container.appendChild(suffixEl);
     }
 
     element.appendChild(container);
@@ -103,41 +100,41 @@ function switchTab(tab) {
     billsBtn.classList.remove('active');
 
     if (tab === 'live') {
-        billsContent.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+        billsContent.style.transition = 'all 0.2s ease';
         billsContent.style.opacity = '0';
-        billsContent.style.transform = 'translateY(8px)';
+        billsContent.style.transform = 'translateY(10px)';
 
         setTimeout(() => {
             billsContent.classList.add('hidden');
             liveContent.classList.remove('hidden');
             liveContent.style.opacity = '0';
-            liveContent.style.transform = 'translateY(8px)';
+            liveContent.style.transform = 'translateY(10px)';
             liveBtn.classList.add('active');
 
             requestAnimationFrame(() => {
-                liveContent.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+                liveContent.style.transition = 'all 0.25s ease';
                 liveContent.style.opacity = '1';
                 liveContent.style.transform = 'translateY(0)';
             });
-        }, 180);
+        }, 150);
     } else {
-        liveContent.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
+        liveContent.style.transition = 'all 0.2s ease';
         liveContent.style.opacity = '0';
-        liveContent.style.transform = 'translateY(8px)';
+        liveContent.style.transform = 'translateY(10px)';
 
         setTimeout(() => {
             liveContent.classList.add('hidden');
             billsContent.classList.remove('hidden');
             billsContent.style.opacity = '0';
-            billsContent.style.transform = 'translateY(8px)';
+            billsContent.style.transform = 'translateY(10px)';
             billsBtn.classList.add('active');
 
             requestAnimationFrame(() => {
-                billsContent.style.transition = 'opacity 0.25s ease, transform 0.25s ease';
+                billsContent.style.transition = 'all 0.25s ease';
                 billsContent.style.opacity = '1';
                 billsContent.style.transform = 'translateY(0)';
             });
-        }, 180);
+        }, 150);
     }
 }
 
@@ -147,8 +144,6 @@ function initializeSupabase() {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         loadData();
         loadBills();
-        initPullToRefresh();
-        setInterval(() => loadData(false), 5 * 60 * 1000);
     } else {
         setTimeout(initializeSupabase, 40);
     }
@@ -168,32 +163,19 @@ async function loadData(showLoading = true) {
         if (error) throw error;
 
         allPriceData = data || [];
-        displayedCount = 5;
         filterData(currentFilterHours, false);
     } catch (err) {
-        console.error('Error loading price data:', err);
-        const recentList = document.getElementById('recent-list');
-        if (recentList) {
-            recentList.innerHTML = `
-                <div class="text-center py-8 text-red-400 text-sm">
-                    Failed to load price data.<br>
-                    <button onclick="loadData(true)" class="mt-2 px-4 py-1 bg-zinc-800 rounded-xl text-sm">Retry</button>
-                </div>
-            `;
-        }
+        console.error('Price data error:', err);
     }
 }
 
-function filterData(hours, updateActive = true) {
+function filterData(hours) {
     if (!allPriceData.length) return;
     currentFilterHours = hours;
 
     const hoursInMs = hours * 60 * 60 * 1000;
     const now = new Date();
-    const filtered = allPriceData.filter(row => {
-        const recordTime = new Date(row.recorded_at);
-        return (now - recordTime) <= hoursInMs;
-    });
+    const filtered = allPriceData.filter(row => (now - new Date(row.recorded_at)) <= hoursInMs);
 
     if (filtered.length === 0) return;
 
@@ -202,8 +184,7 @@ function filterData(hours, updateActive = true) {
 
     animateSlotNumber(document.getElementById('current-price'), price.toFixed(1) + '¢');
     document.getElementById('current-emoji').innerHTML = getEmoji(price);
-    document.getElementById('current-time').innerHTML = 
-        `Updated ${new Date(latest.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+    document.getElementById('current-time').innerHTML = `Updated ${new Date(latest.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 
     const prices = filtered.map(r => parseFloat(r.price));
     const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
@@ -215,13 +196,12 @@ function filterData(hours, updateActive = true) {
     animateSlotNumber(document.getElementById('low-price'), low.toFixed(1) + '¢');
 
     updateChart(filtered);
-    displayedCount = 5;
     renderRecentList(filtered);
 }
 
 function getEmoji(price) {
-    if (price <= 8.0) return '🟢';
-    if (price <= 10.0) return '🟡';
+    if (price <= 8) return '🟢';
+    if (price <= 10) return '🟡';
     return '🔴';
 }
 
@@ -230,7 +210,6 @@ function renderRecentList(filteredData) {
     container.innerHTML = '';
 
     const toShow = filteredData.slice(0, displayedCount);
-    const isLongRange = currentFilterHours > 24;
 
     toShow.forEach(row => {
         const p = parseFloat(row.price);
@@ -238,42 +217,21 @@ function renderRecentList(filteredData) {
 
         const el = document.createElement('div');
         el.className = `flex items-center justify-between px-4 py-[13px] bg-zinc-900/70 border border-zinc-800 rounded-2xl`;
-
-        if (isLongRange) {
-            el.innerHTML = `
-                <div class="flex items-center gap-3.5">
-                    <span class="text-3xl">${getEmoji(p)}</span>
-                    <div>
-                        <div class="font-semibold text-xl tracking-tight">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
-                        <div class="text-[10px] text-zinc-500 -mt-0.5">
-                            ${time.toLocaleDateString([], {month:'short', day:'numeric'})} · ${time.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'})}
-                        </div>
-                    </div>
+        el.innerHTML = `
+            <div class="flex items-center gap-3.5">
+                <span class="text-3xl">${getEmoji(p)}</span>
+                <div>
+                    <div class="font-semibold text-xl tracking-tight">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
                 </div>
-            `;
-        } else {
-            el.innerHTML = `
-                <div class="flex items-center gap-3.5">
-                    <span class="text-3xl">${getEmoji(p)}</span>
-                    <div>
-                        <div class="font-semibold text-xl tracking-tight">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
-                    </div>
-                </div>
-                <div class="text-right text-xs text-zinc-400 font-mono">
-                    ${time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                </div>
-            `;
-        }
+            </div>
+            <div class="text-right text-xs text-zinc-400 font-mono">
+                ${time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+            </div>
+        `;
         container.appendChild(el);
     });
 
     document.getElementById('reading-count').innerHTML = `${filteredData.length} readings`;
-    document.getElementById('load-more-btn').style.display = (filteredData.length > displayedCount) ? 'block' : 'none';
-}
-
-function loadMore() {
-    displayedCount += LOAD_MORE_AMOUNT;
-    filterData(currentFilterHours, false);
 }
 
 // ==================== CHART ====================
@@ -284,8 +242,7 @@ function updateChart(data) {
     if (priceChart) priceChart.destroy();
 
     const labels = data.slice().reverse().map(r => {
-        const d = new Date(r.recorded_at);
-        return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        return new Date(r.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     });
 
     const prices = data.slice().reverse().map(r => parseFloat(r.price));
@@ -293,14 +250,12 @@ function updateChart(data) {
     priceChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels: labels,
+            labels,
             datasets: [{
-                label: 'Price (¢)',
                 data: prices,
                 borderColor: '#22c55e',
-                borderWidth: 2,
+                borderWidth: 2.5,
                 tension: 0.3,
-                fill: false,
                 pointRadius: 0
             }]
         },
@@ -329,7 +284,11 @@ async function loadBills() {
         renderBillsList(allBillsData);
         renderSummaryStats(allBillsData);
     } catch (err) {
-        console.error('Error loading bills:', err);
+        console.error('Bills loading error:', err);
+        const billsList = document.getElementById('bills-list');
+        if (billsList) {
+            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills</div>`;
+        }
     }
 }
 
@@ -340,7 +299,7 @@ function renderBillsList(bills) {
 
     bills.forEach(bill => {
         const el = document.createElement('div');
-        el.className = 'bill-card glass border border-zinc-800 rounded-2xl p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.985]';
+        el.className = 'bill-card glass border border-zinc-800 rounded-2xl p-4 cursor-pointer';
         el.onclick = () => showBillModal(bill);
 
         const eff = parseFloat(bill.effective_rate) || 0;
@@ -378,39 +337,17 @@ function renderSummaryStats(bills) {
 
 function showBillModal(bill) {
     const modal = document.getElementById('bill-modal');
-    const modalContent = modal.querySelector('.glass');
-
     document.getElementById('modal-period').innerHTML = 
         `${new Date(bill.service_start).toLocaleDateString([], {month:'long', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'long', day:'numeric'})}`;
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
-
-    modalContent.style.transition = 'none';
-    modalContent.style.transform = 'translateY(40px)';
-    modalContent.style.opacity = '0';
-
-    requestAnimationFrame(() => {
-        modalContent.style.transition = 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1), opacity 0.25s ease';
-        modalContent.style.transform = 'translateY(0)';
-        modalContent.style.opacity = '1';
-    });
 }
 
 function closeBillModal() {
     const modal = document.getElementById('bill-modal');
-    const modalContent = modal.querySelector('.glass');
-
-    modalContent.style.transition = 'transform 0.2s ease, opacity 0.2s ease';
-    modalContent.style.transform = 'translateY(30px)';
-    modalContent.style.opacity = '0';
-
-    setTimeout(() => {
-        modal.classList.remove('flex');
-        modal.classList.add('hidden');
-        modalContent.style.transform = '';
-        modalContent.style.opacity = '';
-    }, 180);
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
 }
 
 // ==================== HELPERS ====================
@@ -422,17 +359,9 @@ function formatCents(rate) {
     return parseFloat(rate).toFixed(2) + '¢';
 }
 
-function showSkeleton() {
-    // Optional: expand later
-}
+function showSkeleton() {}
 
-function initPullToRefresh() {
-    // Optional
-}
-
-function updateChart(data) {
-    // Already defined above
-}
+function initPullToRefresh() {}
 
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', initializeSupabase);
