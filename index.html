@@ -17,37 +17,24 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- Your App Logic -->
-    <script src="app.js"></script>
-</head>
+    <script src="app.js" defer></script></head>
 <body class="bg-zinc-950 text-white">
     
     <!-- Header -->
-    <header class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur-lg border-b border-zinc-800">
-        <div class="max-w-md mx-auto px-6 py-4 flex items-center justify-between">
-            <div>
-                <h1 class="text-2xl font-semibold tracking-tight">ComEd</h1>
-                <p class="text-[10px] text-zinc-400 -mt-0.5">ELECTRICITY PRICING</p>
-            </div>
-            <button onclick="loadData(true)" 
-                    class="flex items-center gap-2 px-4 h-9 bg-zinc-900 hover:bg-zinc-800 active:bg-zinc-700 transition-colors rounded-2xl text-sm font-medium border border-zinc-800">
-                <span>Refresh</span>
-            </button>
-        </div>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComEd Pricing</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="manifest" href="manifest.json">
 
-        <!-- Tabs -->
-        <div class="max-w-md mx-auto px-6 pt-2">
-            <div class="flex border-b border-zinc-800">
-                <button onclick="switchTab('live')" id="tab-live"
-                        class="tab-button flex-1 py-3 text-sm font-medium text-center active">
-                    Live Prices
-                </button>
-                <button onclick="switchTab('bills')" id="tab-bills"
-                        class="tab-button flex-1 py-3 text-sm font-medium text-center text-zinc-400">
-                    My Bills
-                </button>
-            </div>
-        </div>
-    </header>
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Your app logic (with defer) -->
+    <script src="app.js" defer></script>
+</head>
 
     <main class="max-w-md mx-auto">
         
