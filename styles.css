@@ -104,3 +104,15 @@ button:focus-visible {
     outline: 2px solid #22c55e;
     outline-offset: 2px;
 }
+
+/* Fix scorecard number overflow */
+#avg-price,
+#high-price,
+#low-price {
+    font-size: 1.35rem;           /* Slightly smaller to prevent cutoff */
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+}
