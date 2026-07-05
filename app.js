@@ -217,6 +217,7 @@ function renderRecentList(filteredData) {
     container.innerHTML = '';
 
     const toShow = filteredData.slice(0, displayedCount);
+    const showDate = currentFilterHours > 24; // Show date only for 7d and 30d
 
     toShow.forEach(row => {
         const p = parseFloat(row.price);
@@ -224,17 +225,38 @@ function renderRecentList(filteredData) {
 
         const el = document.createElement('div');
         el.className = `flex items-center justify-between px-4 py-[13px] bg-zinc-900/70 border border-zinc-800 rounded-2xl`;
-        el.innerHTML = `
-            <div class="flex items-center gap-3.5">
-                <span class="text-3xl">${getEmoji(p)}</span>
-                <div>
-                    <div class="font-semibold text-xl tracking-tight">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
+
+        if (showDate) {
+            // Long range view: Show date + time
+            const dateStr = time.toLocaleDateString([], { month: 'short', day: 'numeric' });
+            const timeStr = time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+            el.innerHTML = `
+                <div class="flex items-center gap-3.5">
+                    <span class="text-3xl">${getEmoji(p)}</span>
+                    <div>
+                        <div class="font-semibold text-xl tracking-tight">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
+                        <div class="text-[10px] text-zinc-500 -mt-0.5">
+                            ${dateStr} · ${timeStr}
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div class="text-right text-xs text-zinc-400 font-mono">
-                ${time.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-            </div>
-        `;
+            `;
+        } else {
+            // Short range view: Show only time (cleaner)
+            el.innerHTML = `
+                <div class="flex items-center gap-3.5">
+                    <span class="text-3xl">${getEmoji(p)}</span>
+                    <div>
+                        <div class="font-semibold text-xl tracking-tight">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
+                    </div>
+                </div>
+                <div class="text-right text-xs text-zinc-400 font-mono">
+                    ${time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                </div>
+            `;
+        }
+
         container.appendChild(el);
     });
 
