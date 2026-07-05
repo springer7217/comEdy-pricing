@@ -5,18 +5,16 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 let supabaseClient = null;
 let allPriceData = [];
 let allBillsData = [];
-let currentRecentReadings = [];
 let displayedCount = 5;
 const LOAD_MORE_AMOUNT = 10;
 let currentFilterHours = 24;
 let priceChart = null;
+let currentRecentReadings = [];
 
-// ==================== FIXED SLOT MACHINE ANIMATION ====================
+// ==================== SLOT MACHINE ANIMATION ====================
 function animateSlotNumber(element, targetValue, duration = 900) {
     if (!element) return;
-    const isCompactScorecard = ['avg-price', 'high-price', 'low-price'].includes(element.id);
 
-    // Clear previous content completely
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
 
@@ -27,7 +25,6 @@ function animateSlotNumber(element, targetValue, duration = 900) {
     container.style.gap = '1px';
     container.style.maxWidth = '100%';
 
-    // Split number and suffix
     const match = finalStr.match(/^([\d.]+)(.*)$/);
     if (!match) {
         element.textContent = finalStr;
@@ -36,6 +33,7 @@ function animateSlotNumber(element, targetValue, duration = 900) {
 
     const numericPart = match[1];
     const suffix = match[2] || '';
+    const isCompact = ['avg-price', 'high-price', 'low-price'].includes(element.id);
 
     numericPart.split('').forEach((char, index) => {
         if (char === '.') {
@@ -50,21 +48,20 @@ function animateSlotNumber(element, targetValue, duration = 900) {
         reelWrapper.style.overflow = 'hidden';
         reelWrapper.style.display = 'inline-block';
         reelWrapper.style.height = '1em';
-        // Keep reel look consistent; compact sizing is handled via CSS (#avg-price/#high-price/#low-price rules).
-        reelWrapper.style.width = '0.52em';
+        reelWrapper.style.width = isCompact ? '0.48em' : '0.52em';
         reelWrapper.style.position = 'relative';
 
         const reel = document.createElement('div');
         reel.style.position = 'absolute';
         reel.style.top = '0';
         reel.style.left = '0';
-        reel.style.transition = `transform ${duration}ms cubic-bezier(0.23, 1.0, 0.32, 1)`;
+        reel.style.transition = `transform ${duration}ms cubic-bezier(0.23, 1, 0.32, 1)`;
 
         let stripHTML = '';
         const sets = 3;
         for (let s = 0; s < sets; s++) {
             for (let d = 0; d <= 9; d++) {
-                stripHTML += `<div style="height:1em; line-height:1em; text-align:center; font-size: inherit;">${d}</div>`;
+                stripHTML += `<div style="height:1em; line-height:1em; text-align:center;">${d}</div>`;
             }
         }
         reel.innerHTML = stripHTML;
@@ -77,7 +74,6 @@ function animateSlotNumber(element, targetValue, duration = 900) {
         const finalTranslateY = -((totalDigits - 10 + digit) * digitHeightEm);
 
         reel.style.transform = `translateY(0)`;
-
         setTimeout(() => {
             reel.style.transform = `translateY(${finalTranslateY}em)`;
         }, 25 + (index * 45));
@@ -86,7 +82,7 @@ function animateSlotNumber(element, targetValue, duration = 900) {
     if (suffix) {
         const suffixEl = document.createElement('span');
         suffixEl.textContent = suffix;
-        suffixEl.style.marginLeft = isCompactScorecard ? '1px' : '2px';
+        suffixEl.style.marginLeft = isCompact ? '1px' : '2px';
         container.appendChild(suffixEl);
     }
 
@@ -167,7 +163,8 @@ async function loadData(showLoading = true) {
         if (error) throw error;
 
         allPriceData = data || [];
-        filterData(currentFilterHours, false);
+        displayedCount = 5;
+        filterData(currentFilterHours);
     } catch (err) {
         console.error('Price data error:', err);
     }
@@ -176,7 +173,6 @@ async function loadData(showLoading = true) {
 function filterData(hours) {
     if (!allPriceData.length) return;
     currentFilterHours = hours;
-    // Reset pagination every time time-range filter changes.
     displayedCount = 5;
 
     const hoursInMs = hours * 60 * 60 * 1000;
@@ -188,14 +184,15 @@ function filterData(hours) {
         renderRecentList([]);
         return;
     }
+
     currentRecentReadings = filtered;
 
     const latest = allPriceData[0];
     const price = parseFloat(latest.price);
-
     animateSlotNumber(document.getElementById('current-price'), price.toFixed(1) + '¢');
     document.getElementById('current-emoji').innerHTML = getEmoji(price);
-    document.getElementById('current-time').innerHTML = `Updated ${new Date(latest.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
+    document.getElementById('current-time').innerHTML = 
+        `Updated ${new Date(latest.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
 
     const prices = filtered.map(r => parseFloat(r.price));
     const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
@@ -246,7 +243,6 @@ function renderRecentList(filteredData) {
     updateLoadMoreButton(filteredData.length);
 }
 
-// Restore "Load More" behavior: start with 5 then append 10 at a time.
 function loadMore() {
     displayedCount += LOAD_MORE_AMOUNT;
     renderRecentList(currentRecentReadings);
@@ -265,16 +261,15 @@ function updateChart(data) {
 
     if (priceChart) priceChart.destroy();
 
-    const labels = data.slice().reverse().map(r => {
-        return new Date(r.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    });
-
+    const labels = data.slice().reverse().map(r => 
+        new Date(r.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    );
     const prices = data.slice().reverse().map(r => parseFloat(r.price));
 
     priceChart = new Chart(ctx, {
         type: 'line',
         data: {
-            labels,
+            labels: labels,
             datasets: [{
                 data: prices,
                 borderColor: '#22c55e',
@@ -301,9 +296,7 @@ async function loadBills() {
     const billCountEl = document.getElementById('bill-count');
 
     try {
-        if (!supabaseClient) {
-            throw new Error('Supabase client not initialized');
-        }
+        if (!supabaseClient) throw new Error('Supabase not ready');
 
         const { data, error } = await supabaseClient
             .from('bills')
@@ -313,21 +306,13 @@ async function loadBills() {
         if (error) throw error;
 
         allBillsData = data || [];
-
-        // Render both summary cards and the bill list
         renderSummaryStats(allBillsData);
         renderBillsList(allBillsData);
 
     } catch (err) {
-        console.error('Failed to load bills:', err);
-        
+        console.error('Bills loading error:', err);
         if (billsList) {
-            billsList.innerHTML = `
-                <div class="text-center py-8 text-red-400 text-sm">
-                    Unable to load your bills.<br>
-                    Please check your Supabase connection or try refreshing.
-                </div>
-            `;
+            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills. Please try again.</div>`;
         }
         if (billCountEl) billCountEl.innerHTML = 'Error';
     }
@@ -335,8 +320,6 @@ async function loadBills() {
 
 function renderBillsList(bills) {
     const container = document.getElementById('bills-list');
-    if (!container) return;
-
     container.innerHTML = '';
 
     if (!bills || bills.length === 0) {
@@ -362,19 +345,11 @@ function renderBillsList(bills) {
                     <div class="font-semibold">${new Date(bill.service_start).toLocaleDateString([], {month:'short', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'short', day:'numeric'})}</div>
                     <div class="text-xs text-zinc-400">${bill.days} days • ${bill.total_kwh} kWh</div>
                 </div>
-                <div class="text-right">
-                    <div class="font-semibold text-lg">${formatDollarAmount(bill.total_due)}</div>
-                </div>
+                <div class="text-right"><div class="font-semibold text-lg">${formatDollarAmount(bill.total_due)}</div></div>
             </div>
             <div class="grid grid-cols-3 gap-2 text-sm">
-                <div>
-                    <div class="text-[10px] text-zinc-400">Effective Rate</div>
-                    <div class="font-semibold">${formatCents(eff)}</div>
-                </div>
-                <div>
-                    <div class="text-[10px] text-zinc-400">vs Market</div>
-                    <div class="font-semibold ${diffColor}">${diff > 0 ? '+' : ''}${diff.toFixed(2)}¢</div>
-                </div>
+                <div><div class="text-[10px] text-zinc-400">Effective Rate</div><div class="font-semibold">${formatCents(eff)}</div></div>
+                <div><div class="text-[10px] text-zinc-400">vs Market</div><div class="font-semibold ${diffColor}">${diff > 0 ? '+' : ''}${diff.toFixed(2)}¢</div></div>
             </div>
         `;
         container.appendChild(el);
@@ -412,7 +387,19 @@ function formatCents(rate) {
 
 function showSkeleton() {}
 
-function initPullToRefresh() {}
+function showBillModal(bill) {
+    const modal = document.getElementById('bill-modal');
+    document.getElementById('modal-period').innerHTML = 
+        `${new Date(bill.service_start).toLocaleDateString([], {month:'long', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'long', day:'numeric'})}`;
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+
+function closeBillModal() {
+    const modal = document.getElementById('bill-modal');
+    modal.classList.remove('flex');
+    modal.classList.add('hidden');
+}
 
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', initializeSupabase);
