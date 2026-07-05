@@ -217,7 +217,6 @@ function renderRecentList(filteredData) {
     container.innerHTML = '';
 
     const toShow = filteredData.slice(0, displayedCount);
-    const showDate = currentFilterHours > 24; // Show date only for 7d and 30d
 
     toShow.forEach(row => {
         const p = parseFloat(row.price);
@@ -226,26 +225,6 @@ function renderRecentList(filteredData) {
         const el = document.createElement('div');
         el.className = `flex items-center justify-between px-4 py-[13px] bg-zinc-900/70 border border-zinc-800 rounded-2xl`;
 
-        if (showDate) {
-            // Long range view: Show date + time
-            const dateStr = time.toLocaleDateString([], { month: 'short', day: 'numeric' });
-            const timeStr = time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-
-            
-function renderRecentList(filteredData) {
-    const container = document.getElementById('recent-list');
-    container.innerHTML = '';
-
-    const toShow = filteredData.slice(0, displayedCount);
-
-    toShow.forEach(row => {
-        const p = parseFloat(row.price);
-        const time = new Date(row.recorded_at);
-
-        const el = document.createElement('div');
-        el.className = `flex items-center justify-between px-4 py-[13px] bg-zinc-900/70 border border-zinc-800 rounded-2xl`;
-
-        // Always show date + time (you liked how it looked)
         const dateStr = time.toLocaleDateString([], { month: 'short', day: 'numeric' });
         const timeStr = time.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
@@ -267,6 +246,7 @@ function renderRecentList(filteredData) {
     document.getElementById('reading-count').innerHTML = `${filteredData.length} readings`;
     updateLoadMoreButton(filteredData.length);
 }
+
 function loadMore() {
     displayedCount += LOAD_MORE_AMOUNT;
     renderRecentList(currentRecentReadings);
