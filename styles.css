@@ -105,14 +105,53 @@ button:focus-visible {
     outline-offset: 2px;
 }
 
-/* Fix scorecard number overflow */
+/* ============================================
+   SCORECARD NUMBER FIXES (Slot Machine)
+   ============================================ */
+
+/* Target the three stat cards */
 #avg-price,
 #high-price,
 #low-price {
-    font-size: 1.35rem;           /* Slightly smaller to prevent cutoff */
-    line-height: 1.1;
+    font-size: 1.25rem;           /* Reduced from 1.5rem+ to prevent cutoff */
+    line-height: 1.05;
     white-space: nowrap;
     overflow: hidden;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
+    gap: 1px;
+    min-height: 1.4em;
+}
+
+/* Make the animated digit reels more compact */
+#avg-price span,
+#high-price span,
+#low-price span {
+    display: inline-flex;
+    align-items: center;
+    font-size: inherit;
+    line-height: 1;
+}
+
+/* Make individual digit reels narrower */
+#avg-price span[style*="overflow: hidden"],
+#high-price span[style*="overflow: hidden"],
+#low-price span[style*="overflow: hidden"] {
+    width: 0.48em !important;     /* Tighter digit width */
+    min-width: 0.48em;
+}
+
+/* Make the decimal point smaller and tighter */
+#avg-price span,
+#high-price span,
+#low-price span {
+    font-size: inherit;
+}
+
+/* Optional: Slightly reduce emoji size in scorecards if needed */
+#avg-price + .text-emerald-400,
+#high-price + .text-red-400,
+#low-price + .text-sky-400 {
+    font-size: 0.65rem;
 }
