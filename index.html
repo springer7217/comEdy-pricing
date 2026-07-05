@@ -6,48 +6,54 @@
     <title>ComEd Pricing</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
-    
-    <!-- Tailwind -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    
-    <!-- Your App Logic -->
-    <script src="app.js" defer></script></head>
-<body class="bg-zinc-950 text-white">
-    
-    <!-- Header -->
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ComEd Pricing</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="manifest" href="manifest.json">
 
     <!-- External Libraries -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-    <!-- Your app logic (with defer) -->
+    <!-- App Logic -->
     <script src="app.js" defer></script>
 </head>
+<body class="bg-zinc-950 text-white">
+    <div class="max-w-md mx-auto min-h-screen pb-10">
 
-    <main class="max-w-md mx-auto">
-        
+        <!-- Header -->
+        <div class="sticky top-0 z-50 bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-6 py-4 flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-semibold tracking-tight">ComEd</h1>
+                <p class="text-[10px] text-zinc-400 -mt-0.5">ELECTRICITY PRICING</p>
+            </div>
+            <button onclick="loadData(true)" 
+                    class="px-4 h-9 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-sm font-medium transition-colors">
+                Refresh
+            </button>
+        </div>
+
+        <!-- Tabs -->
+        <div class="px-6 pt-4">
+            <div class="flex border-b border-zinc-800">
+                <button onclick="switchTab('live')" id="tab-live"
+                        class="tab-button flex-1 py-3 text-sm font-medium text-center active">
+                    Live Prices
+                </button>
+                <button onclick="switchTab('bills')" id="tab-bills"
+                        class="tab-button flex-1 py-3 text-sm font-medium text-center text-zinc-400">
+                    My Bills
+                </button>
+            </div>
+        </div>
+
         <!-- Live Prices Tab -->
         <div id="live-tab-content">
+
             <!-- Current Price -->
             <div class="px-6 pt-6">
-                <div id="current-card" class="glass border border-zinc-800 rounded-3xl p-6">
+                <div class="glass border border-zinc-800 rounded-3xl p-6">
                     <div class="flex justify-between items-start">
                         <div>
                             <div class="text-xs tracking-[1px] text-zinc-400 font-medium">NOW</div>
                             <div id="current-price" class="text-[64px] leading-none font-semibold tracking-[-3.5px] mt-2">--</div>
-                            <div id="current-time" class="text-sm text-zinc-400 mt-1">Loading latest price...</div>
+                            <div id="current-time" class="text-sm text-zinc-500 mt-1">Loading...</div>
                         </div>
                         <div id="current-emoji" class="text-[72px] mt-1">⏳</div>
                     </div>
@@ -74,42 +80,43 @@
 
             <!-- Time Filters -->
             <div class="px-6 mt-6">
-                <div class="flex items-center gap-2 px-1 mb-3 flex-wrap">
-                    <span class="text-xs uppercase tracking-widest text-zinc-400 font-medium mr-1">Show</span>
-                    <div class="flex flex-wrap gap-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-1 text-sm">
-                        <button onclick="filterData(6)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="6">6h</button>
-                        <button onclick="filterData(12)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="12">12h</button>
-                        <button onclick="filterData(24)" class="filter-btn active px-3 py-1 rounded-xl font-medium bg-white text-zinc-900" data-hours="24">24h</button>
-                        <button onclick="filterData(168)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="168">7d</button>
-                        <button onclick="filterData(720)" class="filter-btn px-3 py-1 rounded-xl font-medium" data-hours="720">30d</button>
+                <div class="flex items-center gap-2 px-1 mb-3">
+                    <span class="text-xs uppercase tracking-widest text-zinc-400 font-medium">Show</span>
+                    <div class="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-2xl p-1 text-sm">
+                        <button onclick="filterData(6)" class="filter-btn px-3 py-1 rounded-xl">6h</button>
+                        <button onclick="filterData(12)" class="filter-btn px-3 py-1 rounded-xl">12h</button>
+                        <button onclick="filterData(24)" class="filter-btn active px-3 py-1 rounded-xl bg-white text-zinc-900">24h</button>
+                        <button onclick="filterData(168)" class="filter-btn px-3 py-1 rounded-xl">7d</button>
+                        <button onclick="filterData(720)" class="filter-btn px-3 py-1 rounded-xl">30d</button>
                     </div>
                 </div>
             </div>
-            
+
             <!-- Chart -->
-            <div class="px-6 mt-6">
-                <div class="glass border border-zinc-800 rounded-2xl p-4">
+            <div class="px-6 mt-4">
+                <div class="glass border border-zinc-800 rounded-2xl p-4 h-64">
                     <canvas id="price-chart"></canvas>
                 </div>
             </div>
 
             <!-- Recent Readings -->
             <div class="px-6 mt-6">
-                <div class="flex items-baseline justify-between px-1 mb-3">
+                <div class="flex justify-between items-baseline px-1 mb-3">
                     <span class="text-sm font-semibold">Recent Readings</span>
                     <span id="reading-count" class="text-xs text-zinc-500"></span>
                 </div>
                 <div id="recent-list" class="space-y-[6px]"></div>
-                <button id="load-more-btn" onclick="loadMore()" 
+
+                <button id="load-more-btn" onclick="loadMore()"
                         class="mt-4 w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-sm font-medium hidden">
                     Load More
                 </button>
             </div>
+
         </div>
 
         <!-- My Bills Tab -->
         <div id="bills-tab-content" class="hidden px-6">
-            <!-- Summary Cards -->
             <div class="grid grid-cols-2 gap-3 mt-6">
                 <div class="glass border border-zinc-800 rounded-2xl p-4">
                     <div class="text-xs text-zinc-400">TOTAL BILLS</div>
@@ -129,9 +136,8 @@
                 </div>
             </div>
 
-            <!-- Bill List -->
             <div class="mt-6">
-                <div class="flex items-center justify-between mb-3">
+                <div class="flex justify-between mb-3">
                     <span class="text-sm font-semibold">Bill History</span>
                     <span id="bill-count" class="text-xs text-zinc-500"></span>
                 </div>
@@ -139,7 +145,7 @@
             </div>
         </div>
 
-    </main>
+    </div>
 
     <!-- Bill Modal -->
     <div id="bill-modal" onclick="closeBillModal()" class="hidden fixed inset-0 bg-black/70 flex items-end justify-center z-[100]">
@@ -148,8 +154,8 @@
                 <div class="font-semibold text-lg" id="modal-period"></div>
                 <button onclick="closeBillModal()" class="text-2xl">&times;</button>
             </div>
-            <div id="modal-content">
-                <!-- Populated by JavaScript -->
+            <div class="space-y-4 text-sm" id="modal-content">
+                <!-- Populated by JS -->
             </div>
         </div>
     </div>
