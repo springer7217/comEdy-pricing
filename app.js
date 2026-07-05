@@ -295,13 +295,15 @@ function updateChart(data) {
     });
 }
 
-// ==================== BILL FUNCTIONS ====================
+// ==================== MY BILLS ====================
 async function loadBills() {
     const billsList = document.getElementById('bills-list');
-    const billCount = document.getElementById('bill-count');
+    const billCountEl = document.getElementById('bill-count');
 
     try {
-        if (!supabaseClient) throw new Error('Data connection is not ready yet.');
+        if (!supabaseClient) {
+            throw new Error('Supabase client not initialized');
+        }
 
         const { data, error } = await supabaseClient
             .from('bills')
@@ -309,36 +311,45 @@ async function loadBills() {
             .order('service_start', { ascending: false });
 
         if (error) throw error;
+
         allBillsData = data || [];
 
-        // Ensure both summary cards and bill list are always rendered from the same data payload.
+        // Render both summary cards and the bill list
         renderSummaryStats(allBillsData);
         renderBillsList(allBillsData);
+
     } catch (err) {
-        console.error('Bills loading error:', err);
+        console.error('Failed to load bills:', err);
+        
         if (billsList) {
-            // User-facing error state so the tab never appears blank on fetch/render failures.
-            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Unable to load your bill data right now. Please reload the page and try again.</div>`;
+            billsList.innerHTML = `
+                <div class="text-center py-8 text-red-400 text-sm">
+                    Unable to load your bills.<br>
+                    Please check your Supabase connection or try refreshing.
+                </div>
+            `;
         }
-        if (billCount) {
-            billCount.innerHTML = 'Load failed';
-        }
+        if (billCountEl) billCountEl.innerHTML = 'Error';
     }
 }
 
 function renderBillsList(bills) {
     const container = document.getElementById('bills-list');
-    container.innerHTML = '';
-    document.getElementById('bill-count').innerHTML = `${bills.length} bills`;
+    if (!container) return;
 
-    if (!bills.length) {
+    container.innerHTML = '';
+
+    if (!bills || bills.length === 0) {
         container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-sm">No bills found yet.</div>`;
+        document.getElementById('bill-count').innerHTML = '0 bills';
         return;
     }
 
+    document.getElementById('bill-count').innerHTML = `${bills.length} bills`;
+
     bills.forEach(bill => {
         const el = document.createElement('div');
-        el.className = 'bill-card glass border border-zinc-800 rounded-2xl p-4 cursor-pointer';
+        el.className = 'bill-card glass border border-zinc-800 rounded-2xl p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.985]';
         el.onclick = () => showBillModal(bill);
 
         const eff = parseFloat(bill.effective_rate) || 0;
@@ -351,11 +362,19 @@ function renderBillsList(bills) {
                     <div class="font-semibold">${new Date(bill.service_start).toLocaleDateString([], {month:'short', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'short', day:'numeric'})}</div>
                     <div class="text-xs text-zinc-400">${bill.days} days • ${bill.total_kwh} kWh</div>
                 </div>
-                <div class="text-right"><div class="font-semibold text-lg">${formatDollarAmount(bill.total_due)}</div></div>
+                <div class="text-right">
+                    <div class="font-semibold text-lg">${formatDollarAmount(bill.total_due)}</div>
+                </div>
             </div>
             <div class="grid grid-cols-3 gap-2 text-sm">
-                <div><div class="text-[10px] text-zinc-400">Effective Rate</div><div class="font-semibold">${formatCents(eff)}</div></div>
-                <div><div class="text-[10px] text-zinc-400">vs Market</div><div class="font-semibold ${diffColor}">${diff > 0 ? '+' : ''}${diff.toFixed(2)}¢</div></div>
+                <div>
+                    <div class="text-[10px] text-zinc-400">Effective Rate</div>
+                    <div class="font-semibold">${formatCents(eff)}</div>
+                </div>
+                <div>
+                    <div class="text-[10px] text-zinc-400">vs Market</div>
+                    <div class="font-semibold ${diffColor}">${diff > 0 ? '+' : ''}${diff.toFixed(2)}¢</div>
+                </div>
             </div>
         `;
         container.appendChild(el);
@@ -363,7 +382,7 @@ function renderBillsList(bills) {
 }
 
 function renderSummaryStats(bills) {
-    if (!bills.length) {
+    if (!bills || bills.length === 0) {
         document.getElementById('total-bills').textContent = '0';
         document.getElementById('total-spent').textContent = '$0.00';
         document.getElementById('avg-effective-rate').textContent = '--';
@@ -380,21 +399,6 @@ function renderSummaryStats(bills) {
     animateSlotNumber(document.getElementById('total-spent'), '$' + totalSpent.toFixed(2));
     animateSlotNumber(document.getElementById('avg-effective-rate'), avgRate.toFixed(2) + '¢');
     animateSlotNumber(document.getElementById('avg-vs-market'), `${avgVsMarket > 0 ? '+' : ''}${avgVsMarket.toFixed(2)}¢`);
-}
-
-function showBillModal(bill) {
-    const modal = document.getElementById('bill-modal');
-    document.getElementById('modal-period').innerHTML = 
-        `${new Date(bill.service_start).toLocaleDateString([], {month:'long', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'long', day:'numeric'})}`;
-
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
-}
-
-function closeBillModal() {
-    const modal = document.getElementById('bill-modal');
-    modal.classList.remove('flex');
-    modal.classList.add('hidden');
 }
 
 // ==================== HELPERS ====================
