@@ -155,3 +155,21 @@ button:focus-visible {
 #low-price + .text-sky-400 {
     font-size: 0.65rem;
 }
+
+/* ==================== SCORECARD OVERFLOW FIX ==================== */
+/* Keep slot-machine animation while ensuring compact cards never clip values. */
+.scorecard-value {
+    font-size: 1.15rem !important;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: visible !important;
+    display: flex;
+    align-items: center;
+    min-height: 1.35em;
+}
+
+.scorecard-value > span {
+    display: inline-flex;
+    align-items: flex-end;
+    max-width: 100%;
+}

@@ -5,6 +5,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 let supabaseClient = null;
 let allPriceData = [];
 let allBillsData = [];
+let currentRecentReadings = [];
 let displayedCount = 5;
 const LOAD_MORE_AMOUNT = 10;
 let currentFilterHours = 24;
@@ -13,6 +14,7 @@ let priceChart = null;
 // ==================== FIXED SLOT MACHINE ANIMATION ====================
 function animateSlotNumber(element, targetValue, duration = 900) {
     if (!element) return;
+    const isCompactScorecard = ['avg-price', 'high-price', 'low-price'].includes(element.id);
 
     // Clear previous content completely
     element.innerHTML = '';
@@ -23,6 +25,7 @@ function animateSlotNumber(element, targetValue, duration = 900) {
     container.style.display = 'inline-flex';
     container.style.alignItems = 'flex-end';
     container.style.gap = '1px';
+    container.style.maxWidth = '100%';
 
     // Split number and suffix
     const match = finalStr.match(/^([\d.]+)(.*)$/);
@@ -47,7 +50,8 @@ function animateSlotNumber(element, targetValue, duration = 900) {
         reelWrapper.style.overflow = 'hidden';
         reelWrapper.style.display = 'inline-block';
         reelWrapper.style.height = '1em';
-        reelWrapper.style.width = '0.52em';
+        // Keep reel look, but use narrower digits for compact scorecards to avoid clipping.
+        reelWrapper.style.width = isCompactScorecard ? '0.44em' : '0.52em';
         reelWrapper.style.position = 'relative';
 
         const reel = document.createElement('div');
@@ -82,7 +86,7 @@ function animateSlotNumber(element, targetValue, duration = 900) {
     if (suffix) {
         const suffixEl = document.createElement('span');
         suffixEl.textContent = suffix;
-        suffixEl.style.marginLeft = '2px';
+        suffixEl.style.marginLeft = isCompactScorecard ? '1px' : '2px';
         container.appendChild(suffixEl);
     }
 
@@ -172,12 +176,19 @@ async function loadData(showLoading = true) {
 function filterData(hours) {
     if (!allPriceData.length) return;
     currentFilterHours = hours;
+    // Reset pagination every time time-range filter changes.
+    displayedCount = 5;
 
     const hoursInMs = hours * 60 * 60 * 1000;
     const now = new Date();
     const filtered = allPriceData.filter(row => (now - new Date(row.recorded_at)) <= hoursInMs);
 
-    if (filtered.length === 0) return;
+    if (filtered.length === 0) {
+        currentRecentReadings = [];
+        renderRecentList([]);
+        return;
+    }
+    currentRecentReadings = filtered;
 
     const latest = allPriceData[0];
     const price = parseFloat(latest.price);
@@ -196,7 +207,7 @@ function filterData(hours) {
     animateSlotNumber(document.getElementById('low-price'), low.toFixed(1) + '¢');
 
     updateChart(filtered);
-    renderRecentList(filtered);
+    renderRecentList(currentRecentReadings);
 }
 
 function getEmoji(price) {
@@ -232,6 +243,19 @@ function renderRecentList(filteredData) {
     });
 
     document.getElementById('reading-count').innerHTML = `${filteredData.length} readings`;
+    updateLoadMoreButton(filteredData.length);
+}
+
+// Restore "Load More" behavior: start with 5 then append 10 at a time.
+function loadMore() {
+    displayedCount += LOAD_MORE_AMOUNT;
+    renderRecentList(currentRecentReadings);
+}
+
+function updateLoadMoreButton(totalReadings) {
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    if (!loadMoreBtn) return;
+    loadMoreBtn.classList.toggle('hidden', displayedCount >= totalReadings);
 }
 
 // ==================== CHART ====================
@@ -273,7 +297,12 @@ function updateChart(data) {
 
 // ==================== BILL FUNCTIONS ====================
 async function loadBills() {
+    const billsList = document.getElementById('bills-list');
+    const billCount = document.getElementById('bill-count');
+
     try {
+        if (!supabaseClient) throw new Error('Data connection is not ready yet.');
+
         const { data, error } = await supabaseClient
             .from('bills')
             .select('*')
@@ -281,13 +310,18 @@ async function loadBills() {
 
         if (error) throw error;
         allBillsData = data || [];
-        renderBillsList(allBillsData);
+
+        // Ensure both summary cards and bill list are always rendered from the same data payload.
         renderSummaryStats(allBillsData);
+        renderBillsList(allBillsData);
     } catch (err) {
         console.error('Bills loading error:', err);
-        const billsList = document.getElementById('bills-list');
         if (billsList) {
-            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills</div>`;
+            // User-facing error state so the tab never appears blank on fetch/render failures.
+            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Unable to load your bill data right now. Please tap Refresh and try again.</div>`;
+        }
+        if (billCount) {
+            billCount.innerHTML = 'Load failed';
         }
     }
 }
@@ -296,6 +330,11 @@ function renderBillsList(bills) {
     const container = document.getElementById('bills-list');
     container.innerHTML = '';
     document.getElementById('bill-count').innerHTML = `${bills.length} bills`;
+
+    if (!bills.length) {
+        container.innerHTML = `<div class="text-center py-6 text-zinc-400 text-sm">No bills found yet.</div>`;
+        return;
+    }
 
     bills.forEach(bill => {
         const el = document.createElement('div');
@@ -324,15 +363,23 @@ function renderBillsList(bills) {
 }
 
 function renderSummaryStats(bills) {
-    if (!bills.length) return;
+    if (!bills.length) {
+        document.getElementById('total-bills').textContent = '0';
+        document.getElementById('total-spent').textContent = '$0.00';
+        document.getElementById('avg-effective-rate').textContent = '--';
+        document.getElementById('avg-vs-market').textContent = '--';
+        return;
+    }
 
     const totalBills = bills.length;
     const totalSpent = bills.reduce((sum, b) => sum + (parseFloat(b.total_due) || 0), 0);
     const avgRate = bills.reduce((sum, b) => sum + (parseFloat(b.effective_rate) || 0), 0) / totalBills;
+    const avgVsMarket = bills.reduce((sum, b) => sum + (parseFloat(b.market_vs_paid_diff) || 0), 0) / totalBills;
 
     animateSlotNumber(document.getElementById('total-bills'), totalBills);
     animateSlotNumber(document.getElementById('total-spent'), '$' + totalSpent.toFixed(2));
     animateSlotNumber(document.getElementById('avg-effective-rate'), avgRate.toFixed(2) + '¢');
+    animateSlotNumber(document.getElementById('avg-vs-market'), `${avgVsMarket > 0 ? '+' : ''}${avgVsMarket.toFixed(2)}¢`);
 }
 
 function showBillModal(bill) {
