@@ -318,7 +318,7 @@ async function loadBills() {
         console.error('Bills loading error:', err);
         if (billsList) {
             // User-facing error state so the tab never appears blank on fetch/render failures.
-            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Unable to load your bill data right now. Please tap Refresh and try again.</div>`;
+            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Unable to load your bill data right now. Please reload the page and try again.</div>`;
         }
         if (billCount) {
             billCount.innerHTML = 'Load failed';
