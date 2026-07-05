@@ -159,26 +159,18 @@ button:focus-visible {
 /* ============================================
    SCORECARD VALUE - CLEAN FIX
    ============================================ */
-
+/* Final Scorecard Styling */
 .scorecard-value {
-    font-size: 1.35rem !important;
+    font-size: 1.3rem !important;
     line-height: 1.15;
     white-space: nowrap;
     overflow: visible !important;
     display: flex;
     align-items: flex-end;
     gap: 1px;
-    min-height: 1.5em;
 }
 
-/* Make digit reels flexible instead of hard-fixed width */
 .scorecard-value span[style*="overflow: hidden"] {
-    width: auto !important;
-    min-width: 0.48em;
-    display: inline-block;
-}
-
-/* Tighter spacing for the ¢ symbol on scorecards */
-.scorecard-value span:last-child {
-    margin-left: 1px;
+    width: 0.45em !important;
+    min-width: 0.45em;
 }
