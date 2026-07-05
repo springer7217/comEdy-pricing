@@ -11,8 +11,8 @@ let currentFilterHours = 24;
 let priceChart = null;
 let currentRecentReadings = [];
 
-// ==================== SLOT MACHINE ANIMATION ====================
-function animateSlotNumber(element, targetValue, duration = 900) {
+// ==================== SIMPLE SLOT MACHINE ====================
+function animateSlotNumber(element, targetValue, duration = 800) {
     if (!element) return;
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
@@ -22,7 +22,6 @@ function animateSlotNumber(element, targetValue, duration = 900) {
     container.style.display = 'inline-flex';
     container.style.alignItems = 'flex-end';
     container.style.gap = '1px';
-    container.style.maxWidth = '100%';
 
     const match = finalStr.match(/^([\d.]+)(.*)$/);
     if (!match) {
@@ -32,13 +31,11 @@ function animateSlotNumber(element, targetValue, duration = 900) {
 
     const numericPart = match[1];
     const suffix = match[2] || '';
-    const isCompact = ['avg-price', 'high-price', 'low-price'].includes(element.id);
 
     numericPart.split('').forEach((char, index) => {
         if (char === '.') {
             const dot = document.createElement('span');
             dot.textContent = '.';
-            dot.style.padding = '0 1px';
             container.appendChild(dot);
             return;
         }
@@ -47,18 +44,17 @@ function animateSlotNumber(element, targetValue, duration = 900) {
         reelWrapper.style.overflow = 'hidden';
         reelWrapper.style.display = 'inline-block';
         reelWrapper.style.height = '1em';
-        reelWrapper.style.width = isCompact ? '0.48em' : '0.52em';
+        reelWrapper.style.width = '0.5em';
         reelWrapper.style.position = 'relative';
 
         const reel = document.createElement('div');
         reel.style.position = 'absolute';
         reel.style.top = '0';
         reel.style.left = '0';
-        reel.style.transition = `transform ${duration}ms cubic-bezier(0.23, 1, 0.32, 1)`;
+        reel.style.transition = `transform ${duration}ms ease-out`;
 
         let stripHTML = '';
-        const sets = 3;
-        for (let s = 0; s < sets; s++) {
+        for (let s = 0; s < 3; s++) {
             for (let d = 0; d <= 9; d++) {
                 stripHTML += `<div style="height:1em; line-height:1em; text-align:center;">${d}</div>`;
             }
@@ -68,20 +64,18 @@ function animateSlotNumber(element, targetValue, duration = 900) {
         container.appendChild(reelWrapper);
 
         const digit = parseInt(char);
-        const digitHeightEm = 1;
-        const totalDigits = 10 * sets;
-        const finalTranslateY = -((totalDigits - 10 + digit) * digitHeightEm);
+        const totalDigits = 30;
+        const finalTranslateY = -((totalDigits - 10 + digit) * 1);
 
         reel.style.transform = `translateY(0)`;
         setTimeout(() => {
             reel.style.transform = `translateY(${finalTranslateY}em)`;
-        }, 25 + (index * 45));
+        }, 20 + (index * 40));
     });
 
     if (suffix) {
         const suffixEl = document.createElement('span');
         suffixEl.textContent = suffix;
-        suffixEl.style.marginLeft = isCompact ? '1px' : '2px';
         container.appendChild(suffixEl);
     }
 
@@ -101,39 +95,33 @@ function switchTab(tab) {
     if (tab === 'live') {
         billsContent.style.transition = 'all 0.2s ease';
         billsContent.style.opacity = '0';
-        billsContent.style.transform = 'translateY(10px)';
 
         setTimeout(() => {
             billsContent.classList.add('hidden');
             liveContent.classList.remove('hidden');
             liveContent.style.opacity = '0';
-            liveContent.style.transform = 'translateY(10px)';
             liveBtn.classList.add('active');
 
             requestAnimationFrame(() => {
                 liveContent.style.transition = 'all 0.25s ease';
                 liveContent.style.opacity = '1';
-                liveContent.style.transform = 'translateY(0)';
             });
-        }, 150);
+        }, 120);
     } else {
         liveContent.style.transition = 'all 0.2s ease';
         liveContent.style.opacity = '0';
-        liveContent.style.transform = 'translateY(10px)';
 
         setTimeout(() => {
             liveContent.classList.add('hidden');
             billsContent.classList.remove('hidden');
             billsContent.style.opacity = '0';
-            billsContent.style.transform = 'translateY(10px)';
             billsBtn.classList.add('active');
 
             requestAnimationFrame(() => {
                 billsContent.style.transition = 'all 0.25s ease';
                 billsContent.style.opacity = '1';
-                billsContent.style.transform = 'translateY(0)';
             });
-        }, 150);
+        }, 120);
     }
 }
 
@@ -269,11 +257,9 @@ function updateChart(data) {
 
     const labels = data.slice().reverse().map(r => {
         const d = new Date(r.recorded_at);
-        if (isLongRange) {
-            return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        } else {
-            return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        }
+        return isLongRange 
+            ? d.toLocaleDateString([], { month: 'short', day: 'numeric' })
+            : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     });
 
     const prices = data.slice().reverse().map(r => parseFloat(r.price));
@@ -295,14 +281,8 @@ function updateChart(data) {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { 
-                    grid: { color: '#27272a' }, 
-                    ticks: { color: '#71717a', font: { size: 10 } } 
-                },
-                y: { 
-                    grid: { color: '#27272a' }, 
-                    ticks: { color: '#71717a', font: { size: 10 } } 
-                }
+                x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } },
+                y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
             }
         }
     });
@@ -330,7 +310,7 @@ async function loadBills() {
     } catch (err) {
         console.error('Bills loading error:', err);
         if (billsList) {
-            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills. Please try again.</div>`;
+            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills.</div>`;
         }
         if (billCountEl) billCountEl.innerHTML = 'Error';
     }
@@ -350,7 +330,7 @@ function renderBillsList(bills) {
 
     bills.forEach(bill => {
         const el = document.createElement('div');
-        el.className = 'bill-card glass border border-zinc-800 rounded-2xl p-4 cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.985]';
+        el.className = 'bill-card glass border border-zinc-800 rounded-2xl p-4 cursor-pointer';
         el.onclick = () => showBillModal(bill);
 
         const eff = parseFloat(bill.effective_rate) || 0;
