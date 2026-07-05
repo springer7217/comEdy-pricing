@@ -156,20 +156,29 @@ button:focus-visible {
     font-size: 0.65rem;
 }
 
-/* ==================== SCORECARD OVERFLOW FIX ==================== */
-/* Keep slot-machine animation while ensuring compact cards never clip values. */
+/* ============================================
+   SCORECARD VALUE - CLEAN FIX
+   ============================================ */
+
 .scorecard-value {
-    font-size: 1.15rem !important;
-    line-height: 1.1;
+    font-size: 1.35rem !important;
+    line-height: 1.15;
     white-space: nowrap;
     overflow: visible !important;
     display: flex;
-    align-items: center;
-    min-height: 1.35em;
+    align-items: flex-end;
+    gap: 1px;
+    min-height: 1.5em;
 }
 
-.scorecard-value > span {
-    display: inline-flex;
-    align-items: flex-end;
-    max-width: 100%;
+/* Make digit reels flexible instead of hard-fixed width */
+.scorecard-value span[style*="overflow: hidden"] {
+    width: auto !important;
+    min-width: 0.48em;
+    display: inline-block;
+}
+
+/* Tighter spacing for the ¢ symbol on scorecards */
+.scorecard-value span:last-child {
+    margin-left: 1px;
 }
