@@ -50,8 +50,8 @@ function animateSlotNumber(element, targetValue, duration = 900) {
         reelWrapper.style.overflow = 'hidden';
         reelWrapper.style.display = 'inline-block';
         reelWrapper.style.height = '1em';
-        // Keep reel look, but use narrower digits for compact scorecards to avoid clipping.
-        reelWrapper.style.width = isCompactScorecard ? '0.44em' : '0.52em';
+        // Keep reel look consistent; compact sizing is handled via CSS (#avg-price/#high-price/#low-price rules).
+        reelWrapper.style.width = '0.52em';
         reelWrapper.style.position = 'relative';
 
         const reel = document.createElement('div');
