@@ -73,7 +73,8 @@ function animateSlotNumber(element, targetValue, duration = 800) {
 
     element.appendChild(container);
 
-    if (isCompactStatCard) {
+    const shouldSettleToStatic = isCompactStatCard || element.id === 'current-price';
+    if (shouldSettleToStatic) {
         const settleDelay = duration + (animatedDigitIndex * 40) + 80;
         setTimeout(() => {
             if (element) {
