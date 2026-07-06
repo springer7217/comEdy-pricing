@@ -257,9 +257,11 @@ function updateChart(data) {
 
     const labels = data.slice().reverse().map(r => {
         const d = new Date(r.recorded_at);
-        return isLongRange 
-            ? d.toLocaleDateString([], { month: 'short', day: 'numeric' })
-            : d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        if (isLongRange) {
+            return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        } else {
+            return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        }
     });
 
     const prices = data.slice().reverse().map(r => parseFloat(r.price));
@@ -281,8 +283,14 @@ function updateChart(data) {
             maintainAspectRatio: false,
             plugins: { legend: { display: false } },
             scales: {
-                x: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } },
-                y: { grid: { color: '#27272a' }, ticks: { color: '#71717a', font: { size: 10 } } }
+                x: { 
+                    grid: { color: '#27272a' }, 
+                    ticks: { color: '#a1a1aa', font: { size: 10 } } 
+                },
+                y: { 
+                    grid: { color: '#27272a' }, 
+                    ticks: { color: '#a1a1aa', font: { size: 10 } } 
+                }
             }
         }
     });
