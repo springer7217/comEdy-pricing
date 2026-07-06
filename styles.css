@@ -157,12 +157,12 @@ button:focus-visible {
 }
 
 /* ============================================
-   SCORECARD VALUE - CLEAN FIX
+   SCORECARD STYLING (Restored)
    ============================================ */
-/* Final Scorecard Styling */
+
 .scorecard-value {
-    font-size: 1.3rem !important;
-    line-height: 1.15;
+    font-size: 1.45rem !important;
+    line-height: 1.1;
     white-space: nowrap;
     overflow: visible !important;
     display: flex;
@@ -171,6 +171,14 @@ button:focus-visible {
 }
 
 .scorecard-value span[style*="overflow: hidden"] {
-    width: 0.45em !important;
-    min-width: 0.45em;
+    width: 0.48em !important;
+    min-width: 0.48em;
+}
+
+/* Optional: Slightly better label styling above the numbers */
+.glass .text-emerald-400,
+.glass .text-red-400,
+.glass .text-sky-400 {
+    font-size: 0.65rem;
+    letter-spacing: 0.5px;
 }
