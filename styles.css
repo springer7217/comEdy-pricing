@@ -20,6 +20,10 @@ body {
 .mt-6 {
     margin-top: 1.5rem;
 }
+
+.mt-4 {
+    margin-top: 1rem;
+}
 /* ==================== TAB STYLES ==================== */
 .tab-button {
     position: relative;
@@ -234,6 +238,8 @@ body {
 }
 
 .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 0.6rem;
 }
 

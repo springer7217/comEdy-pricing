@@ -162,9 +162,11 @@ async function loadData(showLoading = true) {
 }
 
 function filterData(hours) {
-    if (!allPriceData.length) return;
     currentFilterHours = hours;
     displayedCount = 5;
+    updateFilterButtons(hours);
+
+    if (!allPriceData.length) return;
 
     const hoursInMs = hours * 60 * 60 * 1000;
     const now = new Date();
@@ -196,6 +198,13 @@ function filterData(hours) {
 
     updateChart(filtered);
     renderRecentList(currentRecentReadings);
+}
+
+function updateFilterButtons(hours) {
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        const isActive = Number(btn.dataset.hours) === Number(hours);
+        btn.classList.toggle('active', isActive);
+    });
 }
 
 function getEmoji(price) {
