@@ -241,7 +241,7 @@ body {
     background: linear-gradient(165deg, rgba(42, 42, 48, 0.94), rgba(28, 28, 34, 0.94));
     border-color: #30303a;
     border-radius: 1rem;
-    padding: 0.75rem 0.72rem 0.68rem;
+    padding: 0.8rem 0.74rem 0.74rem;
     min-width: 0;
 }
 
@@ -264,15 +264,15 @@ body {
 }
 
 .scorecard-value.stat-value {
-    font-size: clamp(1.3rem, 6vw, 1.8rem) !important;
-    line-height: 1.05;
+    font-size: clamp(1.05rem, 4.9vw, 1.45rem) !important;
+    line-height: 1.14;
     letter-spacing: -0.02em;
     white-space: nowrap;
     overflow: visible !important;
     display: flex;
     align-items: flex-end;
-    min-height: 1.1em;
-    margin-top: 0.18rem;
+    min-height: 1.24em;
+    margin-top: 0.22rem;
 }
 
 .slot-number {
@@ -297,6 +297,24 @@ body {
 .scorecard-value .slot-reel-wrapper {
     width: 0.5em !important;
     min-width: 0.5em;
+}
+
+.scorecard-value.stat-value .slot-reel-wrapper {
+    width: 0.46em !important;
+    min-width: 0.46em;
+}
+
+.scorecard-value.stat-value .slot-number {
+    gap: 0;
+}
+
+.scorecard-value.stat-value .slot-decimal {
+    margin: 0 -0.02em;
+}
+
+.scorecard-value.stat-value .slot-suffix {
+    padding-left: 0;
+    font-size: 0.94em;
 }
 
 .slot-reel {

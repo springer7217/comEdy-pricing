@@ -16,7 +16,8 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     if (!element) return;
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
-    const digitHeightEm = 1.08;
+    const isCompactStatCard = ['avg-price', 'high-price', 'low-price'].includes(element.id);
+    const digitHeightEm = isCompactStatCard ? 1.02 : 1.08;
 
     const finalStr = String(targetValue);
     const container = document.createElement('span');
