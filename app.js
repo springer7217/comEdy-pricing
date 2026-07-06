@@ -501,7 +501,9 @@ function normalizeBillRecord(bill) {
     const marketDiff = marketDiffRaw ?? (effectiveRate - marketAvg);
     const seasonRaw = getFirstValue(bill, ['season']) || '';
     const season = normalizeSeason(seasonRaw) || deriveSeasonFromDate(serviceStart);
-    const credits = getNumeric(bill, ['credits', 'credits_applied', 'credit_amount'], 0);
+    const creditsRaw = getOptionalNumeric(bill, [
+        'credits', 'credits_applied', 'credit_amount', 'credit_total', 'total_credits', 'bill_credit', 'adjustments'
+    ]);
     const supplyCost = getNumeric(bill, [
         'supply_cost', 'supply_total', 'energy_cost', 'supply_charge', 'supply_amount', 'energy_amount'
     ]);
@@ -514,11 +516,11 @@ function normalizeBillRecord(bill) {
     const deliveryRate = getNumeric(bill, [
         'delivery_rate', 'delivery_rate_cents', 'wires_rate', 'delivery_rate_per_kwh', 'wires_rate_per_kwh'
     ]);
-    const taxesFeesRaw = getNumeric(bill, [
+    const taxesFeesRaw = getOptionalNumeric(bill, [
         'taxes_fees', 'taxes_and_fees', 'taxes', 'fees_total', 'taxes_and_fees_total', 'taxes_total',
         'tax_and_fees', 'fees', 'taxesfees', 'taxes_fees_amount', 'other_charges'
     ]);
-    const taxesFees = resolveTaxesFees(totalDue, supplyCost, deliveryCost, taxesFeesRaw);
+    const { taxesFees, credits } = resolveBillAdjustments(totalDue, supplyCost, deliveryCost, taxesFeesRaw, creditsRaw);
 
     return {
         raw: bill,
@@ -531,7 +533,8 @@ function normalizeBillRecord(bill) {
         marketAvg,
         marketDiff,
         season,
-        hasCredits: credits > 0,
+        hasCredits: Math.abs(credits) > 0.004,
+        credits,
         supplyCost,
         supplyRate,
         deliveryCost,
@@ -540,11 +543,27 @@ function normalizeBillRecord(bill) {
     };
 }
 
-function resolveTaxesFees(totalDue, supplyCost, deliveryCost, taxesFeesRaw) {
-    if (taxesFeesRaw > 0) return taxesFeesRaw;
-    const inferred = totalDue - supplyCost - deliveryCost;
-    if (!Number.isFinite(inferred)) return 0;
-    return inferred > 0 ? inferred : 0;
+function resolveBillAdjustments(totalDue, supplyCost, deliveryCost, taxesFeesRaw, creditsRaw) {
+    let taxesFees = Number.isFinite(taxesFeesRaw) ? taxesFeesRaw : null;
+    let credits = Number.isFinite(creditsRaw) ? creditsRaw : null;
+    const baseCharges = supplyCost + deliveryCost;
+
+    if (taxesFees === null && credits === null) {
+        taxesFees = 0;
+        credits = totalDue - baseCharges;
+    } else if (taxesFees === null) {
+        taxesFees = totalDue - baseCharges - credits;
+    } else if (credits === null) {
+        credits = totalDue - baseCharges - taxesFees;
+    }
+
+    if (!Number.isFinite(taxesFees)) taxesFees = 0;
+    if (!Number.isFinite(credits)) credits = 0;
+
+    if (Math.abs(taxesFees) < 0.005) taxesFees = 0;
+    if (Math.abs(credits) < 0.005) credits = 0;
+
+    return { taxesFees, credits };
 }
 
 function normalizeSeason(value) {
@@ -718,6 +737,7 @@ function renderSummaryStats(bills) {
     const totalSupplySpend = normalized.reduce((sum, b) => sum + b.supplyCost, 0);
     const totalDeliverySpend = normalized.reduce((sum, b) => sum + b.deliveryCost, 0);
     const totalTaxesFees = normalized.reduce((sum, b) => sum + b.taxesFees, 0);
+    const totalCredits = normalized.reduce((sum, b) => sum + b.credits, 0);
     currentSummaryMeta = {
         totalBills,
         totalSpent,
@@ -726,6 +746,7 @@ function renderSummaryStats(bills) {
         totalSupplySpend,
         totalDeliverySpend,
         totalTaxesFees,
+        totalCredits,
         activeSeason: activeBillSeasonFilter
     };
 
@@ -736,7 +757,8 @@ function renderSummaryStats(bills) {
     updateBillsBreakdownChart({
         supply: totalSupplySpend,
         delivery: totalDeliverySpend,
-        taxes: totalTaxesFees
+        taxes: totalTaxesFees,
+        credits: totalCredits
     });
 }
 
@@ -882,7 +904,19 @@ function updateBillsBreakdownChart(totals) {
     const supply = Number(totals?.supply || 0);
     const delivery = Number(totals?.delivery || 0);
     const taxes = Number(totals?.taxes || 0);
-    const total = supply + delivery + taxes;
+    const credits = Number(totals?.credits || 0);
+    const hasCreditsSlice = Math.abs(credits) > 0.004;
+    const labels = ['Supply', 'Delivery', 'Taxes & Fees'];
+    const values = [supply, delivery, taxes];
+    const backgroundColor = ['#22c55e', '#38bdf8', '#f59e0b'];
+    const borderColor = ['#14532d', '#0c4a6e', '#78350f'];
+    if (hasCreditsSlice) {
+        labels.push('Credits Applied');
+        values.push(Math.abs(credits));
+        backgroundColor.push('#a78bfa');
+        borderColor.push('#5b21b6');
+    }
+    const total = values.reduce((sum, val) => sum + val, 0);
 
     if (!total) {
         if (captionEl) captionEl.textContent = 'No bill breakdown data yet';
@@ -912,15 +946,18 @@ function updateBillsBreakdownChart(totals) {
         return;
     }
 
-    if (captionEl) captionEl.textContent = `Supply ${formatDollarAmount(supply)} • Delivery ${formatDollarAmount(delivery)} • Taxes & Fees ${formatDollarAmount(taxes)}`;
+    if (captionEl) {
+        const creditsText = hasCreditsSlice ? ` • Credits ${credits < 0 ? '-' : ''}${formatDollarAmount(Math.abs(credits))}` : '';
+        captionEl.textContent = `Supply ${formatDollarAmount(supply)} • Delivery ${formatDollarAmount(delivery)} • Taxes & Fees ${formatDollarAmount(taxes)}${creditsText}`;
+    }
     billBreakdownChart = new Chart(chartEl, {
         type: 'pie',
         data: {
-            labels: ['Supply', 'Delivery', 'Taxes & Fees'],
+            labels,
             datasets: [{
-                data: [supply, delivery, taxes],
-                backgroundColor: ['#22c55e', '#38bdf8', '#f59e0b'],
-                borderColor: ['#14532d', '#0c4a6e', '#78350f'],
+                data: values,
+                backgroundColor,
+                borderColor,
                 borderWidth: 1
             }]
         },
@@ -1003,6 +1040,13 @@ function renderBillModalContent(parsed) {
     const deliveryRateText = parsed.deliveryRate > 0 ? ` (${formatCentsCompact(parsed.deliveryRate)}/kWh)` : '';
     const marketDiffText = `${parsed.marketDiff > 0 ? '+' : ''}${parsed.marketDiff.toFixed(2)}¢ vs market`;
 
+    const creditsRow = parsed.hasCredits
+        ? `<div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">Credits Applied</div>
+                <div class="font-semibold ${parsed.credits < 0 ? 'text-emerald-400' : 'text-red-400'}">${parsed.credits < 0 ? '-' : ''}${formatDollarAmount(Math.abs(parsed.credits))}</div>
+           </div>`
+        : '';
+
     return `
         <div class="grid grid-cols-2 gap-4">
             <div>
@@ -1027,6 +1071,7 @@ function renderBillModalContent(parsed) {
                 <div class="text-zinc-400">Taxes & Fees</div>
                 <div class="font-semibold">${formatDollarAmount(parsed.taxesFees)}</div>
             </div>
+            ${creditsRow}
         </div>
         <div class="border-t border-zinc-700/80 pt-4 space-y-2">
             <div class="flex justify-between items-baseline">
@@ -1064,12 +1109,13 @@ async function showBillModal(bill) {
         ? parsed.serviceEnd.toLocaleDateString([], { month: 'long', day: 'numeric' })
         : 'Unknown';
 
-    document.getElementById('modal-period').innerHTML = 
-        `${startText} — ${endText}`;
+    document.getElementById('modal-period').innerHTML =
+        `${startText} — ${endText} • ${formatKwh(parsed.totalKwh)} kWh`;
     modalContent.innerHTML = renderBillModalContent(parsed);
     renderBillRecordBreakdownChart(parsed);
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+    document.body.classList.add('modal-open');
 
     const detailed = await fetchBillDetailData(parsed);
     if (detailed) {
@@ -1088,6 +1134,7 @@ function closeBillModal() {
     }
     modal.classList.remove('flex');
     modal.classList.add('hidden');
+    document.body.classList.remove('modal-open');
 }
 
 function renderBillRecordBreakdownChart(parsed) {
@@ -1100,7 +1147,19 @@ function renderBillRecordBreakdownChart(parsed) {
     const supply = Number(parsed?.supplyCost || 0);
     const delivery = Number(parsed?.deliveryCost || 0);
     const taxes = Number(parsed?.taxesFees || 0);
-    const total = supply + delivery + taxes;
+    const credits = Number(parsed?.credits || 0);
+    const hasCreditsSlice = Math.abs(credits) > 0.004;
+    const labels = ['Supply', 'Delivery', 'Taxes & Fees'];
+    const values = [supply, delivery, taxes];
+    const backgroundColor = ['#22c55e', '#38bdf8', '#f59e0b'];
+    const borderColor = ['#14532d', '#0c4a6e', '#78350f'];
+    if (hasCreditsSlice) {
+        labels.push('Credits Applied');
+        values.push(Math.abs(credits));
+        backgroundColor.push('#a78bfa');
+        borderColor.push('#5b21b6');
+    }
+    const total = values.reduce((sum, val) => sum + val, 0);
 
     if (!total) {
         billRecordBreakdownChart = new Chart(chartEl, {
@@ -1129,11 +1188,11 @@ function renderBillRecordBreakdownChart(parsed) {
     billRecordBreakdownChart = new Chart(chartEl, {
         type: 'pie',
         data: {
-            labels: ['Supply', 'Delivery', 'Taxes & Fees'],
+            labels,
             datasets: [{
-                data: [supply, delivery, taxes],
-                backgroundColor: ['#22c55e', '#38bdf8', '#f59e0b'],
-                borderColor: ['#14532d', '#0c4a6e', '#78350f'],
+                data: values,
+                backgroundColor,
+                borderColor,
                 borderWidth: 1
             }]
         },
@@ -1154,6 +1213,12 @@ function renderBillRecordBreakdownChart(parsed) {
             }
         }
     });
+}
+
+function formatKwh(value) {
+    const parsed = Number(value || 0);
+    if (!Number.isFinite(parsed)) return '0';
+    return Math.round(parsed).toLocaleString();
 }
 
 // ==================== INIT ====================

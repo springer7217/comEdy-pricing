@@ -5,6 +5,10 @@ body {
     color: white;
 }
 
+body.modal-open {
+    overflow: hidden;
+}
+
 /* Fallback utility classes used by tab/modal toggles */
 .hidden {
     display: none !important;
@@ -670,6 +674,18 @@ button:focus-visible {
     background-color: #18181b;
     border: 1px solid #27272a;
     border-radius: 24px 24px 0 0;
+}
+
+#bill-modal {
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0.4rem);
+    overscroll-behavior: contain;
+}
+
+.bill-modal-panel {
+    max-height: calc(100vh - 2.6rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* My Bills tab spacing */
