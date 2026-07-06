@@ -98,6 +98,7 @@ function switchTab(tab) {
     billsBtn.classList.remove('active');
 
     if (tab === 'live') {
+        closeBillModal();
         billsContent.style.transition = 'all 0.2s ease';
         billsContent.style.opacity = '0';
 
@@ -132,6 +133,7 @@ function switchTab(tab) {
 
 // ==================== SUPABASE ====================
 function initializeSupabase() {
+    closeBillModal();
     if (window.supabase && typeof window.supabase.createClient === 'function') {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         loadData();
@@ -650,9 +652,11 @@ async function showBillModal(bill) {
 
 function closeBillModal() {
     const modal = document.getElementById('bill-modal');
+    if (!modal) return;
     modal.classList.remove('flex');
     modal.classList.add('hidden');
 }
 
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', initializeSupabase);
+window.addEventListener('pageshow', closeBillModal);
