@@ -392,6 +392,11 @@ function normalizeBillRecord(bill) {
     const marketDiff = getNumeric(bill, ['market_vs_paid_diff', 'vs_market', 'market_diff'], 0);
     const season = getFirstValue(bill, ['season']) || '';
     const credits = getNumeric(bill, ['credits', 'credits_applied', 'credit_amount'], 0);
+    const supplyCost = getNumeric(bill, ['supply_cost', 'supply_total', 'energy_cost', 'supply_charge']);
+    const supplyRate = getNumeric(bill, ['supply_rate', 'supply_rate_cents', 'energy_rate']);
+    const deliveryCost = getNumeric(bill, ['delivery_cost', 'delivery_total', 'delivery_charge', 'wires_cost']);
+    const deliveryRate = getNumeric(bill, ['delivery_rate', 'delivery_rate_cents', 'wires_rate']);
+    const taxesFees = getNumeric(bill, ['taxes_fees', 'taxes_and_fees', 'taxes', 'fees_total']);
 
     return {
         raw: bill,
@@ -404,7 +409,12 @@ function normalizeBillRecord(bill) {
         marketAvg,
         marketDiff,
         season,
-        hasCredits: credits > 0
+        hasCredits: credits > 0,
+        supplyCost,
+        supplyRate,
+        deliveryCost,
+        deliveryRate,
+        taxesFees
     };
 }
 
@@ -492,6 +502,10 @@ function formatCents(rate) {
     return parseFloat(rate).toFixed(2) + '¢';
 }
 
+function formatCentsCompact(rate) {
+    return parseFloat(rate).toFixed(1) + '¢';
+}
+
 function showSkeleton() {}
 
 function showBillModal(bill) {
@@ -506,29 +520,52 @@ function showBillModal(bill) {
         : 'Unknown';
     const diffColor = parsed.marketDiff > 0 ? 'text-red-400' : 'text-emerald-400';
     const seasonText = parsed.season ? String(parsed.season).toLowerCase() : 'n/a';
+    const supplyRateText = parsed.supplyRate > 0 ? ` (${formatCentsCompact(parsed.supplyRate)}/kWh)` : '';
+    const deliveryRateText = parsed.deliveryRate > 0 ? ` (${formatCentsCompact(parsed.deliveryRate)}/kWh)` : '';
+    const marketDiffText = `${parsed.marketDiff > 0 ? '+' : ''}${parsed.marketDiff.toFixed(2)}¢ vs market`;
 
     document.getElementById('modal-period').innerHTML = 
         `${startText} — ${endText}`;
     modalContent.innerHTML = `
-        <div class="flex justify-between items-end">
+        <div class="grid grid-cols-2 gap-4">
             <div>
-                <div class="text-[10px] uppercase tracking-wider text-zinc-400">Total Due</div>
+                <div class="text-zinc-400 text-sm">Total kWh</div>
+                <div class="text-3xl font-semibold">${Math.round(parsed.totalKwh)} kWh</div>
+            </div>
+            <div class="text-right">
+                <div class="text-zinc-400 text-sm">Total Due</div>
                 <div class="text-3xl font-semibold">${formatDollarAmount(parsed.totalDue)}</div>
             </div>
-            <div class="text-right text-zinc-400 text-xs">
-                <div>${parsed.days} days</div>
-                <div>${parsed.totalKwh} kWh</div>
+        </div>
+        <div class="border-t border-zinc-700/80 pt-4 space-y-3">
+            <div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">Supply (Energy)</div>
+                <div class="font-semibold">${formatDollarAmount(parsed.supplyCost)}${supplyRateText}</div>
+            </div>
+            <div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">Delivery (Wires)</div>
+                <div class="font-semibold">${formatDollarAmount(parsed.deliveryCost)}${deliveryRateText}</div>
+            </div>
+            <div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">Taxes & Fees</div>
+                <div class="font-semibold">${formatDollarAmount(parsed.taxesFees)}</div>
             </div>
         </div>
-        <div class="grid grid-cols-3 gap-3 text-sm">
-            <div><div class="text-[10px] text-zinc-400">Effective Rate</div><div class="font-semibold">${formatCents(parsed.effectiveRate)}</div></div>
-            <div><div class="text-[10px] text-zinc-400">Market Avg</div><div class="font-semibold">${formatCents(parsed.marketAvg)}</div></div>
-            <div><div class="text-[10px] text-zinc-400">vs Market</div><div class="font-semibold ${diffColor}">${parsed.marketDiff > 0 ? '+' : ''}${parsed.marketDiff.toFixed(2)}¢</div></div>
+        <div class="border-t border-zinc-700/80 pt-4 space-y-2">
+            <div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">Effective Rate</div>
+                <div class="text-4xl font-semibold">${formatCentsCompact(parsed.effectiveRate)}</div>
+            </div>
+            <div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">vs Market Average</div>
+                <div class="text-3xl font-semibold ${diffColor}">${marketDiffText}</div>
+            </div>
         </div>
-        <div class="flex gap-2 pt-1">
+        <div class="flex gap-2 pt-1 items-center">
             <span class="inline-flex px-3 py-1 rounded-full text-xs tracking-wide text-sky-300 bg-sky-500/10">${seasonText}</span>
             ${parsed.hasCredits ? '<span class="inline-flex px-3 py-1 rounded-full text-xs tracking-wide text-emerald-300 bg-emerald-500/10">Credits</span>' : ''}
         </div>
+        <button onclick="closeBillModal()" class="mt-2 w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-lg">Close</button>
     `;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
