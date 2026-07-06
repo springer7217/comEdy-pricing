@@ -317,13 +317,13 @@ body {
 
 .scorecard-value.stat-value {
     font-size: clamp(1rem, 4.45vw, 1.32rem) !important;
-    line-height: 1.18;
+    line-height: 1.24;
     letter-spacing: -0.02em;
     white-space: nowrap;
     overflow: visible !important;
     display: flex;
     align-items: flex-end;
-    min-height: 1.28em;
+    min-height: 1.34em;
     margin-top: 0.22rem;
 }
 
@@ -352,8 +352,8 @@ body {
 }
 
 .scorecard-value.stat-value .slot-reel-wrapper {
-    width: 0.46em !important;
-    min-width: 0.46em;
+    width: 0.49em !important;
+    min-width: 0.49em;
 }
 
 .scorecard-value.stat-value .slot-number {
@@ -367,6 +367,7 @@ body {
 .scorecard-value.stat-value .slot-suffix {
     padding-left: 0;
     font-size: 0.94em;
+    line-height: 1.1;
 }
 
 .slot-reel {
