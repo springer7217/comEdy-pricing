@@ -47,15 +47,17 @@
         <div id="live-tab-content">
 
             <!-- Current Price -->
-            <div class="px-6 pt-6">
-                <div class="glass border border-zinc-800 rounded-3xl p-6 now-card">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="text-xs tracking-[1px] text-zinc-400 font-medium">NOW</div>
-                            <div id="current-price" class="text-[64px] leading-none font-semibold tracking-[-3.5px] mt-2 current-price-value">--</div>
-                            <div id="current-time" class="text-sm text-zinc-500 mt-1 current-price-time">Loading...</div>
+            <div class="live-now-wrap">
+                <div class="glass now-card">
+                    <div class="now-card-content">
+                        <div class="now-card-main">
+                            <div class="now-card-label">NOW</div>
+                            <div id="current-price" class="current-price-value">--</div>
+                            <div id="current-time" class="current-price-time">Loading...</div>
                         </div>
-                        <div id="current-emoji" class="text-[72px] mt-1 current-emoji">⏳</div>
+                        <div class="now-card-emoji-wrap">
+                            <div id="current-emoji" class="current-emoji">⏳</div>
+                        </div>
                     </div>
                 </div>
             </div>
