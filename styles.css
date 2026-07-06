@@ -40,18 +40,51 @@ body {
 }
 
 /* ==================== FILTER BUTTONS ==================== */
+.filter-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.filter-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #71717a;
+    font-weight: 500;
+}
+
+.filter-buttons {
+    display: inline-flex;
+    background-color: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 9999px;
+    padding: 3px;
+    gap: 2px;
+}
+
 .filter-btn {
-    transition: all 0.2s ease;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 500;
+    color: #a1a1aa;
+    background: transparent;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    transition: all 0.15s ease;
 }
 
 .filter-btn:hover {
-    background-color: #27272a;
+    color: #e4e4e7;
 }
 
 .filter-btn.active {
     background-color: white;
     color: #18181b;
     font-weight: 600;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 /* ==================== BILL CARDS ==================== */
