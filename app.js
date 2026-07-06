@@ -182,7 +182,7 @@ function filterData(hours) {
 
     const latest = allPriceData[0];
     const price = parseFloat(latest.price);
-    animateSlotNumber(document.getElementById('current-price'), price.toFixed(1) + '¢');
+    document.getElementById('current-price').textContent = formatLivePrice(price);
     document.getElementById('current-emoji').innerHTML = getEmoji(price);
     document.getElementById('current-time').innerHTML = 
         `Updated ${new Date(latest.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
@@ -192,9 +192,9 @@ function filterData(hours) {
     const high = Math.max(...prices);
     const low = Math.min(...prices);
 
-    animateSlotNumber(document.getElementById('avg-price'), avg.toFixed(1) + '¢');
-    animateSlotNumber(document.getElementById('high-price'), high.toFixed(1) + '¢');
-    animateSlotNumber(document.getElementById('low-price'), low.toFixed(1) + '¢');
+    document.getElementById('avg-price').textContent = formatLivePrice(avg);
+    document.getElementById('high-price').textContent = formatLivePrice(high);
+    document.getElementById('low-price').textContent = formatLivePrice(low);
 
     updateChart(filtered);
     renderRecentList(currentRecentReadings);
@@ -211,6 +211,14 @@ function getEmoji(price) {
     if (price <= 8) return '🟢';
     if (price <= 10) return '🟡';
     return '🔴';
+}
+
+function formatLivePrice(centsValue) {
+    const cents = Number(centsValue);
+    if (Math.abs(cents) >= 100) {
+        return `$${(cents / 100).toFixed(2)}`;
+    }
+    return `${cents.toFixed(1)}¢`;
 }
 
 function renderRecentList(filteredData) {
@@ -233,7 +241,7 @@ function renderRecentList(filteredData) {
             <div class="flex items-center gap-3.5">
                 <span class="text-3xl">${getEmoji(p)}</span>
                 <div>
-                    <div class="font-semibold text-xl tracking-tight">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
+                    <div class="font-semibold text-xl tracking-tight">${formatLivePrice(p)}</div>
                     <div class="text-[10px] text-zinc-500 -mt-0.5">
                         ${dateStr} · ${timeStr}
                     </div>
