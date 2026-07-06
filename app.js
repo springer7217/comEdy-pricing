@@ -12,6 +12,8 @@ let priceChart = null;
 let currentRecentReadings = [];
 const BILL_TABLE_CANDIDATES = ['bills', 'comed_bills', 'bill_history'];
 const BILL_DETAIL_TABLE_CANDIDATES = ['bill_details', 'bill_line_items', 'bills_details', 'bill_breakdown'];
+const BILL_SEASONS = ['all', 'spring', 'summer', 'fall', 'winter'];
+let activeBillSeasonFilter = 'all';
 
 // ==================== SIMPLE SLOT MACHINE ====================
 function animateSlotNumber(element, targetValue, duration = 800) {
@@ -329,7 +331,8 @@ async function loadBills() {
         if (!supabaseClient) throw new Error('Supabase not ready');
         allBillsData = await fetchBillsData();
         renderSummaryStats(allBillsData);
-        renderBillsList(allBillsData);
+        renderBillSeasonFilters();
+        applyBillSeasonFilter();
 
     } catch (err) {
         console.error('Bills loading error:', err);
@@ -393,7 +396,8 @@ function normalizeBillRecord(bill) {
     const effectiveRate = getNumeric(bill, ['effective_rate', 'eff_rate', 'rate_paid']);
     const marketAvg = getNumeric(bill, ['market_avg_rate', 'market_rate', 'market_avg']);
     const marketDiff = getNumeric(bill, ['market_vs_paid_diff', 'vs_market', 'market_diff'], 0);
-    const season = getFirstValue(bill, ['season']) || '';
+    const seasonRaw = getFirstValue(bill, ['season']) || '';
+    const season = normalizeSeason(seasonRaw);
     const credits = getNumeric(bill, ['credits', 'credits_applied', 'credit_amount'], 0);
     const supplyCost = getNumeric(bill, [
         'supply_cost', 'supply_total', 'energy_cost', 'supply_charge', 'supply_amount', 'energy_amount'
@@ -429,6 +433,38 @@ function normalizeBillRecord(bill) {
         deliveryRate,
         taxesFees
     };
+}
+
+function normalizeSeason(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (raw.includes('spring')) return 'spring';
+    if (raw.includes('summer')) return 'summer';
+    if (raw.includes('fall') || raw.includes('autumn')) return 'fall';
+    if (raw.includes('winter')) return 'winter';
+    return '';
+}
+
+function renderBillSeasonFilters() {
+    const container = document.getElementById('bill-season-filters');
+    if (!container) return;
+    container.innerHTML = BILL_SEASONS.map(season => {
+        const label = season === 'all' ? 'All' : `${season.charAt(0).toUpperCase()}${season.slice(1)}`;
+        const activeClass = season === activeBillSeasonFilter ? 'active' : '';
+        return `<button type="button" class="bill-season-chip ${activeClass}" data-season="${season}" onclick="setBillSeasonFilter('${season}')">${label}</button>`;
+    }).join('');
+}
+
+function applyBillSeasonFilter() {
+    const filtered = activeBillSeasonFilter === 'all'
+        ? allBillsData
+        : allBillsData.filter(b => normalizeBillRecord(b).season === activeBillSeasonFilter);
+    renderBillsList(filtered);
+    renderBillSeasonFilters();
+}
+
+function setBillSeasonFilter(season) {
+    activeBillSeasonFilter = BILL_SEASONS.includes(season) ? season : 'all';
+    applyBillSeasonFilter();
 }
 
 async function fetchBillDetailData(parsedBill) {
@@ -512,7 +548,7 @@ function renderBillsList(bills) {
             : 'Unknown';
         const diffColor = parsed.marketDiff > 0 ? 'text-red-400' : 'text-emerald-400';
         const seasonBadge = parsed.season
-            ? `<span class="inline-flex px-3 py-1 rounded-full text-sm tracking-wide text-sky-300 bg-sky-500/10">${String(parsed.season).toLowerCase()}</span>`
+            ? `<button type="button" class="inline-flex px-3 py-1 rounded-full text-sm tracking-wide text-sky-300 bg-sky-500/10" onclick="event.stopPropagation(); setBillSeasonFilter('${parsed.season}')">${parsed.season}</button>`
             : '';
         const creditBadge = parsed.hasCredits
             ? `<span class="inline-flex px-3 py-1 rounded-full text-sm tracking-wide text-emerald-300 bg-emerald-500/10">Credits</span>`
