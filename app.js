@@ -330,31 +330,39 @@ async function loadBills() {
     try {
         if (!supabaseClient) throw new Error('Supabase not ready');
         allBillsData = await fetchBillsData();
-        allBillsData = await hydrateBillsWithDetails(allBillsData);
         renderSummaryStats(allBillsData);
         renderBillSeasonFilters();
         applyBillSeasonFilter();
 
+        hydrateBillsWithDetails(allBillsData)
+            .then((hydrated) => {
+                allBillsData = hydrated;
+                applyBillSeasonFilter();
+            })
+            .catch((detailErr) => {
+                console.error('Bill detail hydration error:', detailErr);
+            });
+
     } catch (err) {
-        console.error('Bills loading error:', err);
+        console.error('Bills loading error:', err?.message || err, err?.details || '', err?.hint || '');
         if (billsList) {
             billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills. Please try again.</div>`;
         }
-
-        async function hydrateBillsWithDetails(bills) {
-            return Promise.all(bills.map(async (bill) => {
-                const parsed = normalizeBillRecord(bill);
-                const missingBreakdown = parsed.supplyCost === 0 && parsed.deliveryCost === 0 && parsed.taxesFees === 0;
-                const missingMarketDiff = parsed.marketDiff === 0;
-                if (!missingBreakdown && !missingMarketDiff) return bill;
-
-                const detail = await fetchBillDetailData(parsed);
-                if (!detail) return bill;
-                return { ...bill, ...detail };
-            }));
-        }
         if (billCountEl) billCountEl.innerHTML = 'Error';
     }
+}
+
+async function hydrateBillsWithDetails(bills) {
+    return Promise.all((bills || []).map(async (bill) => {
+        const parsed = normalizeBillRecord(bill);
+        const missingBreakdown = parsed.supplyCost === 0 && parsed.deliveryCost === 0 && parsed.taxesFees === 0;
+        const missingMarketDiff = parsed.marketDiff === 0;
+        if (!missingBreakdown && !missingMarketDiff) return bill;
+
+        const detail = await fetchBillDetailData(parsed);
+        if (!detail) return bill;
+        return { ...bill, ...detail };
+    }));
 }
 
 async function fetchBillsData() {
