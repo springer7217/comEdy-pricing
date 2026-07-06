@@ -5,6 +5,15 @@ body {
     color: white;
 }
 
+/* Fallback utility classes used by tab/modal toggles */
+.hidden {
+    display: none !important;
+}
+
+.flex {
+    display: flex !important;
+}
+
 .glass {
     background: rgba(39, 39, 42, 0.85);
     backdrop-filter: blur(20px);
