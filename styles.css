@@ -11,6 +11,15 @@ body {
     border: 1px solid #27272a;
 }
 
+/* Cleaner section spacing */
+.px-6 {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.mt-6 {
+    margin-top: 1.5rem;
+}
 /* ==================== TAB STYLES ==================== */
 .tab-button {
     position: relative;
@@ -214,4 +223,47 @@ button:focus-visible {
 .glass .text-sky-400 {
     font-size: 0.65rem;
     letter-spacing: 0.5px;
+}
+
+/* ============================================
+   RECENT READINGS - CLEANER DESIGN
+   ============================================ */
+
+#recent-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#recent-list > div {
+    background-color: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 16px;
+    padding: 14px 16px;
+    transition: all 0.2s ease;
+}
+
+#recent-list > div:hover {
+    background-color: #27272a;
+    border-color: #3f3f46;
+    transform: translateY(-1px);
+}
+
+/* Make the price number stand out a bit more */
+#recent-list .font-semibold {
+    font-size: 1.35rem;
+    letter-spacing: -0.5px;
+}
+
+/* Date/time line styling */
+#recent-list .text-\[10px\] {
+    color: #71717a;
+    font-size: 10px;
+    margin-top: 1px;
+}
+
+/* Emoji size consistency */
+#recent-list .text-3xl {
+    font-size: 1.65rem;
+    line-height: 1;
 }
