@@ -48,32 +48,33 @@
 
             <!-- Current Price -->
             <div class="px-6 pt-6">
-                <div class="glass border border-zinc-800 rounded-3xl p-6">
+                <div class="glass border border-zinc-800 rounded-3xl p-6 now-card">
                     <div class="flex justify-between items-start">
                         <div>
                             <div class="text-xs tracking-[1px] text-zinc-400 font-medium">NOW</div>
-                            <div id="current-price" class="text-[64px] leading-none font-semibold tracking-[-3.5px] mt-2">--</div>
-                            <div id="current-time" class="text-sm text-zinc-500 mt-1">Loading...</div>
+                            <div id="current-price" class="text-[64px] leading-none font-semibold tracking-[-3.5px] mt-2 current-price-value">--</div>
+                            <div id="current-time" class="text-sm text-zinc-500 mt-1 current-price-time">Loading...</div>
                         </div>
-                        <div id="current-emoji" class="text-[72px] mt-1">⏳</div>
+                        <div id="current-emoji" class="text-[72px] mt-1 current-emoji">⏳</div>
                     </div>
                 </div>
             </div>
 
             <!-- Stats -->
-            <div class="px-6 mt-6">
-                <div class="grid grid-cols-3 gap-3">
-                    <div class="glass border border-zinc-800 rounded-2xl p-4">
-                        <div class="text-emerald-400 text-[10px] font-semibold tracking-wider">AVG</div>
-                        <div id="avg-price" class="scorecard-value text-3xl font-semibold mt-1">--</div>
+            <div class="px-6 mt-6 stats-section">
+                <div class="stats-header">LAST 24 HOURS</div>
+                <div class="grid grid-cols-3 gap-3 stats-grid">
+                    <div class="glass border border-zinc-800 rounded-2xl p-4 price-stat-card avg">
+                        <div class="text-emerald-400 text-[10px] font-semibold tracking-wider stat-label">AVG</div>
+                        <div id="avg-price" class="scorecard-value text-3xl font-semibold mt-1 stat-value">--</div>
                     </div>
-                    <div class="glass border border-zinc-800 rounded-2xl p-4">
-                        <div class="text-red-400 text-[10px] font-semibold tracking-wider">HIGH</div>
-                        <div id="high-price" class="scorecard-value text-3xl font-semibold mt-1">--</div>
+                    <div class="glass border border-zinc-800 rounded-2xl p-4 price-stat-card high">
+                        <div class="text-red-400 text-[10px] font-semibold tracking-wider stat-label">HIGH</div>
+                        <div id="high-price" class="scorecard-value text-3xl font-semibold mt-1 stat-value">--</div>
                     </div>
-                    <div class="glass border border-zinc-800 rounded-2xl p-4">
-                        <div class="text-sky-400 text-[10px] font-semibold tracking-wider">LOW</div>
-                        <div id="low-price" class="scorecard-value text-3xl font-semibold mt-1">--</div>
+                    <div class="glass border border-zinc-800 rounded-2xl p-4 price-stat-card low">
+                        <div class="text-sky-400 text-[10px] font-semibold tracking-wider stat-label">LOW</div>
+                        <div id="low-price" class="scorecard-value text-3xl font-semibold mt-1 stat-value">--</div>
                     </div>
                 </div>
             </div>

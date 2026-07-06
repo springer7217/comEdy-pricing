@@ -126,14 +126,124 @@ body {
     color: #d4d4d8; /* zinc-300 - better contrast */
 }
 
-/* ==================== SCORECARD NUMBER FITTING ==================== */
-#avg-price,
-#high-price,
-#low-price {
-    font-size: 1.65rem;
-    line-height: 1.1;
+/* ==================== LIVE PRICE SCORECARDS ==================== */
+.now-card {
+    background: linear-gradient(160deg, rgba(44, 44, 52, 0.92), rgba(30, 30, 36, 0.92));
+    border-color: #30303a;
+}
+
+#current-price.current-price-value {
+    font-size: clamp(3rem, 12vw, 4rem);
+    line-height: 1.03;
+    letter-spacing: -0.05em;
+    margin-top: 0.45rem;
+    min-height: 1.1em;
     white-space: nowrap;
+    overflow: visible;
+    display: flex;
+    align-items: flex-end;
+}
+
+#current-time.current-price-time {
+    color: #9ca3af;
+    margin-top: 0.45rem;
+}
+
+#current-emoji.current-emoji {
+    font-size: clamp(3.2rem, 11vw, 4.5rem);
+    line-height: 1;
+    margin-top: 0;
+}
+
+.stats-section {
+    margin-top: 1.25rem;
+}
+
+.stats-header {
+    margin: 0 0 0.55rem 0.2rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: #71717a;
+}
+
+.stats-grid {
+    gap: 0.6rem;
+}
+
+.price-stat-card {
+    background: linear-gradient(165deg, rgba(42, 42, 48, 0.94), rgba(28, 28, 34, 0.94));
+    border-color: #30303a;
+    border-radius: 1rem;
+    padding: 0.75rem 0.72rem 0.68rem;
+    min-width: 0;
+}
+
+.stat-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+}
+
+.price-stat-card.avg .stat-label {
+    color: #6ee7b7;
+}
+
+.price-stat-card.high .stat-label {
+    color: #fca5a5;
+}
+
+.price-stat-card.low .stat-label {
+    color: #7dd3fc;
+}
+
+.scorecard-value.stat-value {
+    font-size: clamp(1.3rem, 6vw, 1.8rem) !important;
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    overflow: visible !important;
+    display: flex;
+    align-items: flex-end;
+    min-height: 1.1em;
+    margin-top: 0.18rem;
+}
+
+.slot-number {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 0.01em;
+    max-width: 100%;
+}
+
+.slot-reel-wrapper {
     overflow: hidden;
+    display: inline-block;
+    width: 0.52em !important;
+    min-width: 0.52em;
+}
+
+#current-price .slot-reel-wrapper {
+    width: 0.56em !important;
+    min-width: 0.56em;
+}
+
+.scorecard-value .slot-reel-wrapper {
+    width: 0.5em !important;
+    min-width: 0.5em;
+}
+
+.slot-reel {
+    will-change: transform;
+}
+
+.slot-decimal {
+    margin: 0 -0.01em;
+}
+
+.slot-suffix {
+    padding-left: 0.02em;
+    flex-shrink: 0;
 }
 
 /* ==================== CHART CONTAINER ==================== */
@@ -145,84 +255,6 @@ body {
 button:focus-visible {
     outline: 2px solid #22c55e;
     outline-offset: 2px;
-}
-
-/* ============================================
-   SCORECARD NUMBER FIXES (Slot Machine)
-   ============================================ */
-
-/* Target the three stat cards */
-#avg-price,
-#high-price,
-#low-price {
-    font-size: 1.25rem;           /* Reduced from 1.5rem+ to prevent cutoff */
-    line-height: 1.05;
-    white-space: nowrap;
-    overflow: hidden;
-    display: flex;
-    align-items: center;
-    justify-content: flex-start;
-    gap: 1px;
-    min-height: 1.4em;
-}
-
-/* Make the animated digit reels more compact */
-#avg-price span,
-#high-price span,
-#low-price span {
-    display: inline-flex;
-    align-items: center;
-    font-size: inherit;
-    line-height: 1;
-}
-
-/* Make individual digit reels narrower */
-#avg-price span[style*="overflow: hidden"],
-#high-price span[style*="overflow: hidden"],
-#low-price span[style*="overflow: hidden"] {
-    width: 0.48em !important;     /* Tighter digit width */
-    min-width: 0.48em;
-}
-
-/* Make the decimal point smaller and tighter */
-#avg-price span,
-#high-price span,
-#low-price span {
-    font-size: inherit;
-}
-
-/* Optional: Slightly reduce emoji size in scorecards if needed */
-#avg-price + .text-emerald-400,
-#high-price + .text-red-400,
-#low-price + .text-sky-400 {
-    font-size: 0.65rem;
-}
-
-/* ============================================
-   SCORECARD STYLING (Restored)
-   ============================================ */
-
-.scorecard-value {
-    font-size: 1.45rem !important;
-    line-height: 1.1;
-    white-space: nowrap;
-    overflow: visible !important;
-    display: flex;
-    align-items: flex-end;
-    gap: 1px;
-}
-
-.scorecard-value span[style*="overflow: hidden"] {
-    width: 0.48em !important;
-    min-width: 0.48em;
-}
-
-/* Optional: Slightly better label styling above the numbers */
-.glass .text-emerald-400,
-.glass .text-red-400,
-.glass .text-sky-400 {
-    font-size: 0.65rem;
-    letter-spacing: 0.5px;
 }
 
 /* ============================================
