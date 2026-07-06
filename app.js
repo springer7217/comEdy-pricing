@@ -22,22 +22,14 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     const finalStr = String(targetValue);
     const container = document.createElement('span');
     container.className = 'slot-number';
+    let animatedDigitIndex = 0;
 
-    const match = finalStr.match(/^([\d.]+)(.*)$/);
-    if (!match) {
-        element.textContent = finalStr;
-        return;
-    }
-
-    const numericPart = match[1];
-    const suffix = match[2] || '';
-
-    numericPart.split('').forEach((char, index) => {
-        if (char === '.') {
-            const dot = document.createElement('span');
-            dot.className = 'slot-decimal';
-            dot.textContent = '.';
-            container.appendChild(dot);
+    finalStr.split('').forEach((char) => {
+        if (!/\d/.test(char)) {
+            const staticChar = document.createElement('span');
+            staticChar.className = char === '.' ? 'slot-decimal' : 'slot-static';
+            staticChar.textContent = char;
+            container.appendChild(staticChar);
             return;
         }
 
@@ -66,22 +58,17 @@ function animateSlotNumber(element, targetValue, duration = 800) {
         reelWrapper.appendChild(reel);
         container.appendChild(reelWrapper);
 
-        const digit = parseInt(char);
+        const digit = parseInt(char, 10);
         const totalDigits = 30;
         const finalTranslateY = -((totalDigits - 10 + digit) * digitHeightEm);
 
         reel.style.transform = `translateY(0)`;
         setTimeout(() => {
             reel.style.transform = `translateY(${finalTranslateY}em)`;
-        }, 20 + (index * 40));
-    });
+        }, 20 + (animatedDigitIndex * 40));
 
-    if (suffix) {
-        const suffixEl = document.createElement('span');
-        suffixEl.className = 'slot-suffix';
-        suffixEl.textContent = suffix;
-        container.appendChild(suffixEl);
-    }
+        animatedDigitIndex += 1;
+    });
 
     element.appendChild(container);
 }
@@ -182,7 +169,7 @@ function filterData(hours) {
 
     const latest = allPriceData[0];
     const price = parseFloat(latest.price);
-    document.getElementById('current-price').textContent = formatLivePrice(price);
+    animateSlotNumber(document.getElementById('current-price'), formatLivePrice(price));
     document.getElementById('current-emoji').innerHTML = getEmoji(price);
     document.getElementById('current-time').innerHTML = 
         `Updated ${new Date(latest.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
@@ -192,9 +179,9 @@ function filterData(hours) {
     const high = Math.max(...prices);
     const low = Math.min(...prices);
 
-    document.getElementById('avg-price').textContent = formatLivePrice(avg);
-    document.getElementById('high-price').textContent = formatLivePrice(high);
-    document.getElementById('low-price').textContent = formatLivePrice(low);
+    animateSlotNumber(document.getElementById('avg-price'), formatLivePrice(avg));
+    animateSlotNumber(document.getElementById('high-price'), formatLivePrice(high));
+    animateSlotNumber(document.getElementById('low-price'), formatLivePrice(low));
 
     updateChart(filtered);
     renderRecentList(currentRecentReadings);

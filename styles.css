@@ -185,6 +185,12 @@ body {
     flex-shrink: 0;
 }
 
+.slot-static {
+    display: inline-flex;
+    align-items: flex-end;
+    flex-shrink: 0;
+}
+
 .now-card::after {
     content: "";
     position: absolute;
