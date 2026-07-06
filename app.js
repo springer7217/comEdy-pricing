@@ -72,6 +72,15 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     });
 
     element.appendChild(container);
+
+    if (isCompactStatCard) {
+        const settleDelay = duration + (animatedDigitIndex * 40) + 80;
+        setTimeout(() => {
+            if (element) {
+                element.textContent = finalStr;
+            }
+        }, settleDelay);
+    }
 }
 
 // ==================== TAB SWITCHING ====================
