@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ComEd Pricing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="styles.css">
     <link rel="manifest" href="manifest.json">
 
@@ -47,15 +48,17 @@
         <div id="live-tab-content">
 
             <!-- Current Price -->
-            <div class="px-6 pt-6">
-                <div class="glass border border-zinc-800 rounded-3xl p-6 now-card">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <div class="text-xs tracking-[1px] text-zinc-400 font-medium">NOW</div>
-                            <div id="current-price" class="text-[64px] leading-none font-semibold tracking-[-3.5px] mt-2 current-price-value">--</div>
-                            <div id="current-time" class="text-sm text-zinc-500 mt-1 current-price-time">Loading...</div>
+            <div class="live-now-wrap">
+                <div class="glass now-card">
+                    <div class="now-card-content">
+                        <div class="now-card-main">
+                            <div class="now-card-label">NOW</div>
+                            <div id="current-price" class="current-price-value">--</div>
+                            <div id="current-time" class="current-price-time">Loading...</div>
                         </div>
-                        <div id="current-emoji" class="text-[72px] mt-1 current-emoji">⏳</div>
+                        <div class="now-card-emoji-wrap">
+                            <div id="current-emoji" class="current-emoji">⏳</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -84,11 +87,11 @@
                 <div class="filter-container">
                     <span class="filter-label">SHOW</span>
                     <div class="filter-buttons">
-                        <button onclick="filterData(6)" class="filter-btn">6h</button>
-                        <button onclick="filterData(12)" class="filter-btn">12h</button>
-                        <button onclick="filterData(24)" class="filter-btn active">24h</button>
-                        <button onclick="filterData(168)" class="filter-btn">7d</button>
-                        <button onclick="filterData(720)" class="filter-btn">30d</button>
+                        <button onclick="filterData(6)" data-hours="6" class="filter-btn">6h</button>
+                        <button onclick="filterData(12)" data-hours="12" class="filter-btn">12h</button>
+                        <button onclick="filterData(24)" data-hours="24" class="filter-btn active">24h</button>
+                        <button onclick="filterData(168)" data-hours="168" class="filter-btn">7d</button>
+                        <button onclick="filterData(720)" data-hours="720" class="filter-btn">30d</button>
                     </div>
                 </div>
             </div>
@@ -102,11 +105,13 @@
 
             <!-- Recent Readings -->
             <div class="px-6 mt-6">
-                <div class="flex justify-between items-baseline px-1 mb-3">
+                <div class="px-1 mb-3">
                     <span class="text-sm font-semibold">Recent Readings</span>
-                    <span id="reading-count" class="text-xs text-zinc-500"></span>
                 </div>
                 <div id="recent-list" class="space-y-[6px]"></div>
+                <div class="recent-readings-meta">
+                    <span id="reading-count" class="reading-count-meta"></span>
+                </div>
 
                 <button id="load-more-btn" onclick="loadMore()"
                         class="mt-4 w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-sm font-medium hidden">

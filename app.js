@@ -16,7 +16,8 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     if (!element) return;
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
-    const digitHeightEm = 1.08;
+    const isCompactStatCard = ['avg-price', 'high-price', 'low-price'].includes(element.id);
+    const digitHeightEm = isCompactStatCard ? 1.02 : 1.08;
 
     const finalStr = String(targetValue);
     const container = document.createElement('span');
@@ -161,9 +162,11 @@ async function loadData(showLoading = true) {
 }
 
 function filterData(hours) {
-    if (!allPriceData.length) return;
     currentFilterHours = hours;
     displayedCount = 5;
+    updateFilterButtons(hours);
+
+    if (!allPriceData.length) return;
 
     const hoursInMs = hours * 60 * 60 * 1000;
     const now = new Date();
@@ -195,6 +198,13 @@ function filterData(hours) {
 
     updateChart(filtered);
     renderRecentList(currentRecentReadings);
+}
+
+function updateFilterButtons(hours) {
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        const isActive = Number(btn.dataset.hours) === Number(hours);
+        btn.classList.toggle('active', isActive);
+    });
 }
 
 function getEmoji(price) {
