@@ -51,21 +51,22 @@
 
             <!-- Stats -->
             <div class="px-6 mt-6 stats-section">
-                <div class="stats-header">LAST 24 HOURS</div>
+                <div id="stats-header" class="stats-header">LAST 24 HOURS</div>
                 <div class="grid grid-cols-3 gap-3 stats-grid">
-                    <div class="glass border border-zinc-800 rounded-2xl p-4 price-stat-card avg">
+                    <button type="button" data-live-stat-detail="avg" class="glass border border-zinc-800 rounded-2xl p-4 price-stat-card avg clickable-scorecard">
                         <div class="text-emerald-400 text-[10px] font-semibold tracking-wider stat-label">AVG</div>
                         <div id="avg-price" class="scorecard-value text-3xl font-semibold mt-1 stat-value">--</div>
-                    </div>
-                    <div class="glass border border-zinc-800 rounded-2xl p-4 price-stat-card high">
+                    </button>
+                    <button type="button" data-live-stat-detail="high" class="glass border border-zinc-800 rounded-2xl p-4 price-stat-card high clickable-scorecard">
                         <div class="text-red-400 text-[10px] font-semibold tracking-wider stat-label">HIGH</div>
                         <div id="high-price" class="scorecard-value text-3xl font-semibold mt-1 stat-value">--</div>
-                    </div>
-                    <div class="glass border border-zinc-800 rounded-2xl p-4 price-stat-card low">
+                    </button>
+                    <button type="button" data-live-stat-detail="low" class="glass border border-zinc-800 rounded-2xl p-4 price-stat-card low clickable-scorecard">
                         <div class="text-sky-400 text-[10px] font-semibold tracking-wider stat-label">LOW</div>
                         <div id="low-price" class="scorecard-value text-3xl font-semibold mt-1 stat-value">--</div>
-                    </div>
+                    </button>
                 </div>
+                <div id="live-stat-detail" class="scorecard-detail-panel hidden"></div>
             </div>
 
             <!-- Time Filters -->
@@ -110,29 +111,31 @@
         <!-- My Bills Tab -->
         <div id="bills-tab-content" class="hidden px-6">
             <div class="grid grid-cols-2 gap-3 mt-6">
-                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                <button type="button" data-bills-summary-detail="total-bills" class="glass border border-zinc-800 rounded-2xl p-4 clickable-scorecard">
                     <div class="text-xs text-zinc-400">TOTAL BILLS</div>
                     <div id="total-bills" class="text-3xl font-semibold mt-1">--</div>
-                </div>
-                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                </button>
+                <button type="button" data-bills-summary-detail="total-spent" class="glass border border-zinc-800 rounded-2xl p-4 clickable-scorecard">
                     <div class="text-xs text-zinc-400">TOTAL SPENT</div>
                     <div id="total-spent" class="text-3xl font-semibold mt-1">--</div>
-                </div>
-                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                </button>
+                <button type="button" data-bills-summary-detail="avg-effective-rate" class="glass border border-zinc-800 rounded-2xl p-4 clickable-scorecard">
                     <div class="text-xs text-zinc-400">AVG EFFECTIVE RATE</div>
                     <div id="avg-effective-rate" class="text-3xl font-semibold mt-1">--</div>
-                </div>
-                <div class="glass border border-zinc-800 rounded-2xl p-4">
+                </button>
+                <button type="button" data-bills-summary-detail="avg-vs-market" class="glass border border-zinc-800 rounded-2xl p-4 clickable-scorecard">
                     <div class="text-xs text-zinc-400">AVG VS MARKET</div>
                     <div id="avg-vs-market" class="text-3xl font-semibold mt-1">--</div>
+                </button>
+            </div>
+            <div id="bills-summary-detail" class="scorecard-detail-panel hidden"></div>
+            <div class="glass border border-zinc-800 rounded-2xl p-4 mt-3">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="text-xs text-zinc-400 tracking-wider">BILL COST BREAKDOWN</div>
+                    <div id="bill-breakdown-caption" class="text-[11px] text-zinc-500">Supply / Delivery / Taxes & Fees</div>
                 </div>
-                <div class="glass border border-zinc-800 rounded-2xl p-4">
-                    <div class="text-xs text-zinc-400">TOTAL SUPPLY SPEND</div>
-                    <div id="supply-spend" class="text-3xl font-semibold mt-1">--</div>
-                </div>
-                <div class="glass border border-zinc-800 rounded-2xl p-4">
-                    <div class="text-xs text-zinc-400">TOTAL DELIVERY SPEND</div>
-                    <div id="delivery-spend" class="text-3xl font-semibold mt-1">--</div>
+                <div class="bill-breakdown-chart-wrap">
+                    <canvas id="bill-breakdown-chart"></canvas>
                 </div>
             </div>
 

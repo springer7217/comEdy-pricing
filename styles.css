@@ -331,6 +331,32 @@ body {
     min-width: 0;
 }
 
+.clickable-scorecard {
+    width: 100%;
+    display: block;
+    text-align: left;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    touch-action: manipulation;
+    transition: transform 0.16s ease, border-color 0.18s ease, box-shadow 0.2s ease;
+}
+
+.clickable-scorecard:active {
+    transform: scale(0.985);
+}
+
+.clickable-scorecard:hover {
+    border-color: #3f3f46;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+}
+
+.clickable-scorecard.active-scorecard {
+    border-color: #22c55e !important;
+    box-shadow: inset 0 0 0 1px rgba(34, 197, 94, 0.35), 0 10px 22px rgba(6, 78, 59, 0.32);
+}
+
 .stat-label {
     font-size: 0.68rem;
     font-weight: 700;
@@ -360,6 +386,55 @@ body {
     min-height: 1.42em;
     margin-top: 0.22rem;
     padding-right: 0.06em;
+}
+
+.scorecard-detail-panel {
+    margin-top: 0.82rem;
+    border-radius: 16px;
+    border: 1px solid #30303a;
+    background: linear-gradient(160deg, rgba(30, 30, 36, 0.97), rgba(20, 20, 24, 0.97));
+}
+
+.scorecard-detail-panel.pop-in {
+    animation: scorecard-detail-pop 220ms ease-out;
+}
+
+.scorecard-detail-content {
+    padding: 0.9rem 1rem;
+}
+
+.scorecard-detail-title {
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #a1a1aa;
+    margin-bottom: 0.4rem;
+}
+
+.scorecard-detail-value {
+    font-size: clamp(1.35rem, 6vw, 1.75rem);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    font-weight: 700;
+    color: #fafafa;
+    margin-bottom: 0.4rem;
+}
+
+.scorecard-detail-subtitle {
+    font-size: 0.84rem;
+    line-height: 1.35;
+    color: #d4d4d8;
+}
+
+@keyframes scorecard-detail-pop {
+    0% {
+        opacity: 0;
+        transform: translateY(12px) scale(0.985);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .slot-number {
@@ -547,9 +622,7 @@ button:focus-visible {
 #total-bills,
 #total-spent,
 #avg-effective-rate,
-#avg-vs-market,
-#supply-spend,
-#delivery-spend {
+#avg-vs-market {
     font-size: clamp(1.25rem, 5.2vw, 1.7rem);
     line-height: 1.2;
     letter-spacing: -0.01em;
@@ -558,12 +631,16 @@ button:focus-visible {
     min-height: 1.24em;
 }
 
+.bill-breakdown-chart-wrap {
+    position: relative;
+    height: 240px;
+    width: 100%;
+}
+
 #total-bills .slot-number,
 #total-spent .slot-number,
 #avg-effective-rate .slot-number,
-#avg-vs-market .slot-number,
-#supply-spend .slot-number,
-#delivery-spend .slot-number {
+#avg-vs-market .slot-number {
     gap: 0.01em;
 }
 

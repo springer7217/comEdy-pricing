@@ -9,11 +9,18 @@ let displayedCount = 5;
 const LOAD_MORE_AMOUNT = 10;
 let currentFilterHours = 24;
 let priceChart = null;
+let billBreakdownChart = null;
 let currentRecentReadings = [];
 const BILL_TABLE_CANDIDATES = ['bills', 'comed_bills', 'bill_history'];
 const BILL_DETAIL_TABLE_CANDIDATES = ['bill_details', 'bill_line_items', 'bills_details', 'bill_breakdown'];
 const BILL_SEASONS = ['all', 'spring', 'summer', 'fall', 'winter'];
 let activeBillSeasonFilter = 'all';
+let currentFilteredPriceData = [];
+let currentLiveStatMeta = null;
+let currentSummaryMeta = null;
+let activeLiveDetailKey = null;
+let activeBillsDetailKey = null;
+let scorecardListenersBound = false;
 
 // ==================== SIMPLE SLOT MACHINE ====================
 function animateSlotNumber(element, targetValue, duration = 800) {
@@ -21,7 +28,7 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
     const isCompactStatCard = ['avg-price', 'high-price', 'low-price'].includes(element.id);
-    const isBillsSummaryCard = ['total-bills', 'total-spent', 'avg-effective-rate', 'avg-vs-market', 'supply-spend', 'delivery-spend'].includes(element.id);
+    const isBillsSummaryCard = ['total-bills', 'total-spent', 'avg-effective-rate', 'avg-vs-market'].includes(element.id);
     const digitHeightEm = (isCompactStatCard || isBillsSummaryCard) ? 1.06 : 1.08;
     const digitWidthEm = isCompactStatCard ? 0.58 : (isBillsSummaryCard ? 0.56 : 0.54);
 
@@ -101,6 +108,7 @@ function switchTab(tab) {
 
     if (tab === 'live') {
         closeBillModal();
+        hideBillsSummaryDetail();
         billsContent.style.transition = 'all 0.2s ease';
         billsContent.style.opacity = '0';
 
@@ -116,6 +124,7 @@ function switchTab(tab) {
             });
         }, 120);
     } else {
+        hideLiveStatDetail();
         liveContent.style.transition = 'all 0.2s ease';
         liveContent.style.opacity = '0';
 
@@ -170,6 +179,8 @@ function filterData(hours) {
     currentFilterHours = hours;
     displayedCount = 5;
     updateFilterButtons(hours);
+    updateStatsHeader(hours);
+    hideLiveStatDetail();
 
     if (!allPriceData.length) return;
 
@@ -184,6 +195,7 @@ function filterData(hours) {
     }
 
     currentRecentReadings = filtered;
+    currentFilteredPriceData = filtered;
 
     const latest = allPriceData[0];
     const price = parseFloat(latest.price);
@@ -196,6 +208,19 @@ function filterData(hours) {
     const avg = prices.reduce((a, b) => a + b, 0) / prices.length;
     const high = Math.max(...prices);
     const low = Math.min(...prices);
+    const highRow = filtered.find(r => parseFloat(r.price) === high) || filtered[0];
+    const lowRow = filtered.find(r => parseFloat(r.price) === low) || filtered[0];
+    const earliestRow = filtered[filtered.length - 1];
+    const latestRow = filtered[0];
+    currentLiveStatMeta = {
+        avg,
+        high,
+        low,
+        highRow,
+        lowRow,
+        earliestRow,
+        latestRow
+    };
 
     animateSlotNumber(document.getElementById('avg-price'), formatLivePrice(avg));
     animateSlotNumber(document.getElementById('high-price'), formatLivePrice(high));
@@ -210,6 +235,22 @@ function updateFilterButtons(hours) {
         const isActive = Number(btn.dataset.hours) === Number(hours);
         btn.classList.toggle('active', isActive);
     });
+}
+
+function updateStatsHeader(hours) {
+    const header = document.getElementById('stats-header');
+    if (!header) return;
+    if (hours < 24) {
+        header.textContent = `LAST ${hours} HOURS`;
+    } else if (hours === 24) {
+        header.textContent = 'LAST 24 HOURS';
+    } else if (hours === 168) {
+        header.textContent = 'LAST 7 DAYS';
+    } else if (hours === 720) {
+        header.textContent = 'LAST 30 DAYS';
+    } else {
+        header.textContent = `LAST ${Math.round(hours / 24)} DAYS`;
+    }
 }
 
 function getEmoji(price) {
@@ -281,16 +322,47 @@ function updateChart(data) {
 
     const isLongRange = currentFilterHours > 24;
 
-    const labels = data.slice().reverse().map(r => {
-        const d = new Date(r.recorded_at);
-        if (isLongRange) {
-            return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
-        } else {
-            return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-        }
-    });
+    let labels = [];
+    let prices = [];
 
-    const prices = data.slice().reverse().map(r => parseFloat(r.price));
+    if (isLongRange) {
+        const dayCount = Math.max(2, Math.round(currentFilterHours / 24));
+        const now = new Date();
+        const dayKeys = [];
+        for (let i = dayCount - 1; i >= 0; i--) {
+            const day = new Date(now);
+            day.setHours(0, 0, 0, 0);
+            day.setDate(day.getDate() - i);
+            dayKeys.push(day.toISOString().slice(0, 10));
+        }
+
+        const dayBuckets = new Map();
+        data.forEach((row) => {
+            const d = new Date(row.recorded_at);
+            const key = d.toISOString().slice(0, 10);
+            if (!dayBuckets.has(key)) {
+                dayBuckets.set(key, { sum: 0, count: 0 });
+            }
+            const bucket = dayBuckets.get(key);
+            bucket.sum += parseFloat(row.price);
+            bucket.count += 1;
+        });
+
+        labels = dayKeys.map((key) => {
+            const d = new Date(`${key}T00:00:00`);
+            return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        });
+        prices = dayKeys.map((key) => {
+            const bucket = dayBuckets.get(key);
+            return bucket ? (bucket.sum / bucket.count) : null;
+        });
+    } else {
+        labels = data.slice().reverse().map(r => {
+            const d = new Date(r.recorded_at);
+            return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+        });
+        prices = data.slice().reverse().map(r => parseFloat(r.price));
+    }
 
     priceChart = new Chart(ctx, {
         type: 'line',
@@ -301,7 +373,8 @@ function updateChart(data) {
                 borderColor: '#22c55e',
                 borderWidth: 2.5,
                 tension: 0.3,
-                pointRadius: 0
+                pointRadius: 0,
+                spanGaps: true
             }]
         },
         options: {
@@ -440,9 +513,11 @@ function normalizeBillRecord(bill) {
     const deliveryRate = getNumeric(bill, [
         'delivery_rate', 'delivery_rate_cents', 'wires_rate', 'delivery_rate_per_kwh', 'wires_rate_per_kwh'
     ]);
-    const taxesFees = getNumeric(bill, [
-        'taxes_fees', 'taxes_and_fees', 'taxes', 'fees_total', 'taxes_and_fees_total', 'taxes_total'
+    const taxesFeesRaw = getNumeric(bill, [
+        'taxes_fees', 'taxes_and_fees', 'taxes', 'fees_total', 'taxes_and_fees_total', 'taxes_total',
+        'tax_and_fees', 'fees', 'taxesfees', 'taxes_fees_amount', 'other_charges'
     ]);
+    const taxesFees = resolveTaxesFees(totalDue, supplyCost, deliveryCost, taxesFeesRaw);
 
     return {
         raw: bill,
@@ -462,6 +537,13 @@ function normalizeBillRecord(bill) {
         deliveryRate,
         taxesFees
     };
+}
+
+function resolveTaxesFees(totalDue, supplyCost, deliveryCost, taxesFeesRaw) {
+    if (taxesFeesRaw > 0) return taxesFeesRaw;
+    const inferred = totalDue - supplyCost - deliveryCost;
+    if (!Number.isFinite(inferred)) return 0;
+    return inferred > 0 ? inferred : 0;
 }
 
 function normalizeSeason(value) {
@@ -496,6 +578,7 @@ function applyBillSeasonFilter() {
     const filtered = activeBillSeasonFilter === 'all'
         ? allBillsData
         : allBillsData.filter(b => normalizeBillRecord(b).season === activeBillSeasonFilter);
+    hideBillsSummaryDetail();
     renderSummaryStats(filtered);
     renderBillsList(filtered);
     renderBillSeasonFilters();
@@ -617,12 +700,12 @@ function renderBillsList(bills) {
 
 function renderSummaryStats(bills) {
     if (!bills || bills.length === 0) {
+        currentSummaryMeta = null;
         document.getElementById('total-bills').textContent = '0';
         document.getElementById('total-spent').textContent = '$0.00';
         document.getElementById('avg-effective-rate').textContent = '--';
         document.getElementById('avg-vs-market').textContent = '--';
-        document.getElementById('supply-spend').textContent = '$0.00';
-        document.getElementById('delivery-spend').textContent = '$0.00';
+        updateBillsBreakdownChart({ supply: 0, delivery: 0, taxes: 0 });
         return;
     }
 
@@ -633,13 +716,238 @@ function renderSummaryStats(bills) {
     const avgVsMarket = normalized.reduce((sum, b) => sum + b.marketDiff, 0) / totalBills;
     const totalSupplySpend = normalized.reduce((sum, b) => sum + b.supplyCost, 0);
     const totalDeliverySpend = normalized.reduce((sum, b) => sum + b.deliveryCost, 0);
+    const totalTaxesFees = normalized.reduce((sum, b) => sum + b.taxesFees, 0);
+    currentSummaryMeta = {
+        totalBills,
+        totalSpent,
+        avgRate,
+        avgVsMarket,
+        totalSupplySpend,
+        totalDeliverySpend,
+        totalTaxesFees,
+        activeSeason: activeBillSeasonFilter
+    };
 
     animateSlotNumber(document.getElementById('total-bills'), totalBills);
     animateSlotNumber(document.getElementById('total-spent'), '$' + totalSpent.toFixed(2));
     animateSlotNumber(document.getElementById('avg-effective-rate'), avgRate.toFixed(2) + '¢');
     animateSlotNumber(document.getElementById('avg-vs-market'), `${avgVsMarket > 0 ? '+' : ''}${avgVsMarket.toFixed(2)}¢`);
-    animateSlotNumber(document.getElementById('supply-spend'), '$' + totalSupplySpend.toFixed(2));
-    animateSlotNumber(document.getElementById('delivery-spend'), '$' + totalDeliverySpend.toFixed(2));
+    updateBillsBreakdownChart({
+        supply: totalSupplySpend,
+        delivery: totalDeliverySpend,
+        taxes: totalTaxesFees
+    });
+}
+
+function hideLiveStatDetail() {
+    const panel = document.getElementById('live-stat-detail');
+    if (panel) panel.classList.add('hidden');
+    document.querySelectorAll('[data-live-stat-detail]').forEach((card) => card.classList.remove('active-scorecard'));
+    activeLiveDetailKey = null;
+}
+
+function hideBillsSummaryDetail() {
+    const panel = document.getElementById('bills-summary-detail');
+    if (panel) panel.classList.add('hidden');
+    document.querySelectorAll('[data-bills-summary-detail]').forEach((card) => card.classList.remove('active-scorecard'));
+    activeBillsDetailKey = null;
+}
+
+function showLiveStatDetail(type) {
+    const panel = document.getElementById('live-stat-detail');
+    if (!panel) return;
+    if (!currentLiveStatMeta) {
+        panel.innerHTML = `<div class="scorecard-detail-content"><div class="scorecard-detail-title">Loading</div><div class="scorecard-detail-subtitle">Waiting for live pricing data to load.</div></div>`;
+        panel.classList.remove('hidden');
+        panel.classList.remove('pop-in');
+        requestAnimationFrame(() => panel.classList.add('pop-in'));
+        return;
+    }
+    if (activeLiveDetailKey === type && !panel.classList.contains('hidden')) {
+        panel.classList.add('hidden');
+        activeLiveDetailKey = null;
+        return;
+    }
+
+    const hoursText = currentFilterHours < 24 ? `${currentFilterHours} hours` : `${Math.round(currentFilterHours / 24)} days`;
+    let title = '';
+    let value = '';
+    let subtitle = '';
+
+    if (type === 'avg') {
+        title = `AVG PRICE (${hoursText})`;
+        value = formatLivePrice(currentLiveStatMeta.avg);
+        const from = formatFriendlyDateTime(currentLiveStatMeta.earliestRow?.recorded_at);
+        const to = formatFriendlyDateTime(currentLiveStatMeta.latestRow?.recorded_at);
+        subtitle = `Computed from ${from} to ${to}.`;
+    } else if (type === 'high') {
+        title = `HIGH PRICE (${hoursText})`;
+        value = formatLivePrice(currentLiveStatMeta.high);
+        subtitle = `Recorded ${formatFriendlyDateTime(currentLiveStatMeta.highRow?.recorded_at)}.`;
+    } else {
+        title = `LOW PRICE (${hoursText})`;
+        value = formatLivePrice(currentLiveStatMeta.low);
+        subtitle = `Recorded ${formatFriendlyDateTime(currentLiveStatMeta.lowRow?.recorded_at)}.`;
+    }
+
+    panel.innerHTML = `<div class="scorecard-detail-content"><div class="scorecard-detail-title">${title}</div><div class="scorecard-detail-value">${value}</div><div class="scorecard-detail-subtitle">${subtitle}</div></div>`;
+    panel.classList.remove('hidden');
+    panel.classList.remove('pop-in');
+    requestAnimationFrame(() => panel.classList.add('pop-in'));
+    document.querySelectorAll('[data-live-stat-detail]').forEach((card) => {
+        card.classList.toggle('active-scorecard', card.dataset.liveStatDetail === type);
+    });
+    activeLiveDetailKey = type;
+}
+
+function showBillsSummaryDetail(key) {
+    const panel = document.getElementById('bills-summary-detail');
+    if (!panel) return;
+    if (!currentSummaryMeta) {
+        panel.innerHTML = `<div class="scorecard-detail-content"><div class="scorecard-detail-title">Loading</div><div class="scorecard-detail-subtitle">Waiting for bill summary data to load.</div></div>`;
+        panel.classList.remove('hidden');
+        panel.classList.remove('pop-in');
+        requestAnimationFrame(() => panel.classList.add('pop-in'));
+        return;
+    }
+    if (activeBillsDetailKey === key && !panel.classList.contains('hidden')) {
+        panel.classList.add('hidden');
+        activeBillsDetailKey = null;
+        return;
+    }
+
+    const seasonText = currentSummaryMeta.activeSeason === 'all'
+        ? 'all seasons'
+        : currentSummaryMeta.activeSeason;
+    const detailMap = {
+        'total-bills': {
+            title: 'Total Bills',
+            value: String(currentSummaryMeta.totalBills),
+            subtitle: `Number of bills in the ${seasonText} filter.`
+        },
+        'total-spent': {
+            title: 'Total Spent',
+            value: formatDollarAmount(currentSummaryMeta.totalSpent),
+            subtitle: `Sum of total due across bills in the ${seasonText} filter.`
+        },
+        'avg-effective-rate': {
+            title: 'Avg Effective Rate',
+            value: formatCents(currentSummaryMeta.avgRate),
+            subtitle: 'Average all-in electricity rate you paid per kWh.'
+        },
+        'avg-vs-market': {
+            title: 'Avg vs Market',
+            value: `${currentSummaryMeta.avgVsMarket > 0 ? '+' : ''}${currentSummaryMeta.avgVsMarket.toFixed(2)}¢`,
+            subtitle: 'Average difference between your effective rate and market average rate.'
+        }
+    };
+    const detail = detailMap[key];
+    if (!detail) return;
+
+    panel.innerHTML = `<div class="scorecard-detail-content"><div class="scorecard-detail-title">${detail.title}</div><div class="scorecard-detail-value">${detail.value}</div><div class="scorecard-detail-subtitle">${detail.subtitle}</div></div>`;
+    panel.classList.remove('hidden');
+    panel.classList.remove('pop-in');
+    requestAnimationFrame(() => panel.classList.add('pop-in'));
+    document.querySelectorAll('[data-bills-summary-detail]').forEach((card) => {
+        card.classList.toggle('active-scorecard', card.dataset.billsSummaryDetail === key);
+    });
+    activeBillsDetailKey = key;
+}
+
+function updateBillsBreakdownChart(totals) {
+    const chartEl = document.getElementById('bill-breakdown-chart');
+    const captionEl = document.getElementById('bill-breakdown-caption');
+    if (!chartEl) return;
+
+    if (billBreakdownChart) {
+        billBreakdownChart.destroy();
+    }
+
+    const supply = Number(totals?.supply || 0);
+    const delivery = Number(totals?.delivery || 0);
+    const taxes = Number(totals?.taxes || 0);
+    const total = supply + delivery + taxes;
+
+    if (!total) {
+        if (captionEl) captionEl.textContent = 'No bill breakdown data yet';
+        billBreakdownChart = new Chart(chartEl, {
+            type: 'pie',
+            data: {
+                labels: ['No data'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#3f3f46'],
+                    borderColor: ['#52525b'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { color: '#a1a1aa', boxWidth: 10, padding: 12 }
+                    },
+                    tooltip: { enabled: false }
+                }
+            }
+        });
+        return;
+    }
+
+    if (captionEl) captionEl.textContent = `Supply ${formatDollarAmount(supply)} • Delivery ${formatDollarAmount(delivery)} • Taxes & Fees ${formatDollarAmount(taxes)}`;
+    billBreakdownChart = new Chart(chartEl, {
+        type: 'pie',
+        data: {
+            labels: ['Supply', 'Delivery', 'Taxes & Fees'],
+            datasets: [{
+                data: [supply, delivery, taxes],
+                backgroundColor: ['#22c55e', '#38bdf8', '#f59e0b'],
+                borderColor: ['#14532d', '#0c4a6e', '#78350f'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#e4e4e7', boxWidth: 11, padding: 12 }
+                },
+                tooltip: {
+                    callbacks: {
+                        label(context) {
+                            const value = Number(context.raw || 0);
+                            const pct = total ? ((value / total) * 100).toFixed(1) : '0.0';
+                            return `${context.label}: ${formatDollarAmount(value)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function bindScorecardInteractions() {
+    if (scorecardListenersBound) return;
+    scorecardListenersBound = true;
+
+    document.addEventListener('click', (event) => {
+        const liveCard = event.target.closest('[data-live-stat-detail]');
+        if (liveCard) {
+            event.preventDefault();
+            showLiveStatDetail(liveCard.dataset.liveStatDetail);
+            return;
+        }
+
+        const billsCard = event.target.closest('[data-bills-summary-detail]');
+        if (billsCard) {
+            event.preventDefault();
+            showBillsSummaryDetail(billsCard.dataset.billsSummaryDetail);
+        }
+    });
 }
 
 // ==================== HELPERS ====================
@@ -653,6 +961,13 @@ function formatCents(rate) {
 
 function formatCentsCompact(rate) {
     return parseFloat(rate).toFixed(1) + '¢';
+}
+
+function formatFriendlyDateTime(timestamp) {
+    if (!timestamp) return 'Unknown time';
+    const d = new Date(timestamp);
+    if (Number.isNaN(d.getTime())) return 'Unknown time';
+    return d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 function showSkeleton() {}
@@ -694,6 +1009,7 @@ function renderBillModalContent(parsed) {
                 <div class="text-zinc-400">Effective Rate</div>
                 <div class="text-4xl font-semibold">${formatCentsCompact(parsed.effectiveRate)}</div>
             </div>
+            <div class="text-xs text-zinc-500 -mt-1">All-in average paid per kWh (supply + delivery + taxes & fees).</div>
             <div class="flex justify-between items-baseline">
                 <div class="text-zinc-400">vs Market Average</div>
                 <div class="text-3xl font-semibold ${diffColor}">${marketDiffText}</div>
@@ -739,5 +1055,11 @@ function closeBillModal() {
 }
 
 // ==================== INIT ====================
-document.addEventListener('DOMContentLoaded', initializeSupabase);
+document.addEventListener('DOMContentLoaded', () => {
+    bindScorecardInteractions();
+    initializeSupabase();
+});
 window.addEventListener('pageshow', closeBillModal);
+
+window.showLiveStatDetail = showLiveStatDetail;
+window.showBillsSummaryDetail = showBillsSummaryDetail;
