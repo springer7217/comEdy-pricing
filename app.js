@@ -18,8 +18,9 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
     const isCompactStatCard = ['avg-price', 'high-price', 'low-price'].includes(element.id);
-    const digitHeightEm = isCompactStatCard ? 1.06 : 1.08;
-    const digitWidthEm = isCompactStatCard ? 0.58 : 0.54;
+    const isBillsSummaryCard = ['total-bills', 'total-spent', 'avg-effective-rate', 'avg-vs-market'].includes(element.id);
+    const digitHeightEm = (isCompactStatCard || isBillsSummaryCard) ? 1.06 : 1.08;
+    const digitWidthEm = isCompactStatCard ? 0.58 : (isBillsSummaryCard ? 0.56 : 0.54);
 
     const finalStr = String(targetValue);
     const container = document.createElement('span');
@@ -74,7 +75,7 @@ function animateSlotNumber(element, targetValue, duration = 800) {
 
     element.appendChild(container);
 
-    const shouldSettleToStatic = isCompactStatCard || element.id === 'current-price';
+    const shouldSettleToStatic = isCompactStatCard || isBillsSummaryCard || element.id === 'current-price';
     if (shouldSettleToStatic) {
         const settleDelay = duration + (animatedDigitIndex * 40) + 80;
         setTimeout(() => {

@@ -484,8 +484,19 @@ button:focus-visible {
 #total-spent,
 #avg-effective-rate,
 #avg-vs-market {
-    font-size: 1.5rem;
-    line-height: 1.1;
+    font-size: clamp(1.25rem, 5.2vw, 1.7rem);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: visible;
+    min-height: 1.24em;
+}
+
+#total-bills .slot-number,
+#total-spent .slot-number,
+#avg-effective-rate .slot-number,
+#avg-vs-market .slot-number {
+    gap: 0.01em;
 }
 
 /* Modal styling */
