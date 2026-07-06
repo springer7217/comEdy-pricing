@@ -17,7 +17,8 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
     const isCompactStatCard = ['avg-price', 'high-price', 'low-price'].includes(element.id);
-    const digitHeightEm = isCompactStatCard ? 1.14 : 1.08;
+    const digitHeightEm = isCompactStatCard ? 1.06 : 1.08;
+    const digitWidthEm = isCompactStatCard ? 0.58 : 0.54;
 
     const finalStr = String(targetValue);
     const container = document.createElement('span');
@@ -38,7 +39,7 @@ function animateSlotNumber(element, targetValue, duration = 800) {
         reelWrapper.style.overflow = 'hidden';
         reelWrapper.style.display = 'inline-block';
         reelWrapper.style.height = `${digitHeightEm}em`;
-        reelWrapper.style.width = '0.5em';
+        reelWrapper.style.width = `${digitWidthEm}em`;
         reelWrapper.style.position = 'relative';
 
         const reel = document.createElement('div');
