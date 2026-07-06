@@ -10,6 +10,7 @@ const LOAD_MORE_AMOUNT = 10;
 let currentFilterHours = 24;
 let priceChart = null;
 let currentRecentReadings = [];
+const BILL_TABLE_CANDIDATES = ['bills', 'comed_bills', 'bill_history'];
 
 // ==================== SIMPLE SLOT MACHINE ====================
 function animateSlotNumber(element, targetValue, duration = 800) {
@@ -322,25 +323,88 @@ async function loadBills() {
 
     try {
         if (!supabaseClient) throw new Error('Supabase not ready');
-
-        const { data, error } = await supabaseClient
-            .from('bills')
-            .select('*')
-            .order('service_start', { ascending: false });
-
-        if (error) throw error;
-
-        allBillsData = data || [];
+        allBillsData = await fetchBillsData();
         renderSummaryStats(allBillsData);
         renderBillsList(allBillsData);
 
     } catch (err) {
         console.error('Bills loading error:', err);
         if (billsList) {
-            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills.</div>`;
+            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills. Please try again.</div>`;
         }
         if (billCountEl) billCountEl.innerHTML = 'Error';
     }
+}
+
+async function fetchBillsData() {
+    for (const table of BILL_TABLE_CANDIDATES) {
+        const { data, error } = await supabaseClient
+            .from(table)
+            .select('*')
+            .limit(500);
+
+        if (!error) {
+            return sortBillsNewestFirst(data || []);
+        }
+    }
+    throw new Error('No readable bills table found');
+}
+
+function sortBillsNewestFirst(rows) {
+    return rows.slice().sort((a, b) => {
+        const aTime = getDateValue(a, ['service_start', 'period_start', 'start_date', 'bill_start'])?.getTime() || 0;
+        const bTime = getDateValue(b, ['service_start', 'period_start', 'start_date', 'bill_start'])?.getTime() || 0;
+        return bTime - aTime;
+    });
+}
+
+function getFirstValue(record, keys) {
+    for (const key of keys) {
+        if (record && record[key] !== undefined && record[key] !== null && record[key] !== '') {
+            return record[key];
+        }
+    }
+    return null;
+}
+
+function getNumeric(record, keys, fallback = 0) {
+    const raw = getFirstValue(record, keys);
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getDateValue(record, keys) {
+    const raw = getFirstValue(record, keys);
+    if (!raw) return null;
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function normalizeBillRecord(bill) {
+    const serviceStart = getDateValue(bill, ['service_start', 'period_start', 'start_date', 'bill_start']);
+    const serviceEnd = getDateValue(bill, ['service_end', 'period_end', 'end_date', 'bill_end']);
+    const days = getNumeric(bill, ['days', 'service_days', 'period_days']);
+    const totalKwh = getNumeric(bill, ['total_kwh', 'kwh', 'usage_kwh']);
+    const totalDue = getNumeric(bill, ['total_due', 'amount_due', 'bill_total', 'total']);
+    const effectiveRate = getNumeric(bill, ['effective_rate', 'eff_rate', 'rate_paid']);
+    const marketAvg = getNumeric(bill, ['market_avg_rate', 'market_rate', 'market_avg']);
+    const marketDiff = getNumeric(bill, ['market_vs_paid_diff', 'vs_market', 'market_diff'], 0);
+    const season = getFirstValue(bill, ['season']) || '';
+    const credits = getNumeric(bill, ['credits', 'credits_applied', 'credit_amount'], 0);
+
+    return {
+        raw: bill,
+        serviceStart,
+        serviceEnd,
+        days,
+        totalKwh,
+        totalDue,
+        effectiveRate,
+        marketAvg,
+        marketDiff,
+        season,
+        hasCredits: credits > 0
+    };
 }
 
 function renderBillsList(bills) {
@@ -356,26 +420,42 @@ function renderBillsList(bills) {
     document.getElementById('bill-count').innerHTML = `${bills.length} bills`;
 
     bills.forEach(bill => {
+        const parsed = normalizeBillRecord(bill);
         const el = document.createElement('div');
         el.className = 'bill-card glass border border-zinc-800 rounded-2xl p-4 cursor-pointer';
-        el.onclick = () => showBillModal(bill);
+        el.onclick = () => showBillModal(parsed);
 
-        const eff = parseFloat(bill.effective_rate) || 0;
-        const diff = parseFloat(bill.market_vs_paid_diff) || 0;
-        const diffColor = diff > 0 ? 'text-red-400' : 'text-emerald-400';
+        const startText = parsed.serviceStart
+            ? parsed.serviceStart.toLocaleDateString([], { month: 'short', year: 'numeric' })
+            : 'Unknown';
+        const endText = parsed.serviceEnd
+            ? parsed.serviceEnd.toLocaleDateString([], { month: 'short', day: 'numeric' })
+            : 'Unknown';
+        const diffColor = parsed.marketDiff > 0 ? 'text-red-400' : 'text-emerald-400';
+        const seasonBadge = parsed.season
+            ? `<span class="inline-flex px-3 py-1 rounded-full text-sm tracking-wide text-sky-300 bg-sky-500/10">${String(parsed.season).toLowerCase()}</span>`
+            : '';
+        const creditBadge = parsed.hasCredits
+            ? `<span class="inline-flex px-3 py-1 rounded-full text-sm tracking-wide text-emerald-300 bg-emerald-500/10">Credits</span>`
+            : '';
 
         el.innerHTML = `
             <div class="flex justify-between mb-3">
                 <div>
-                    <div class="font-semibold">${new Date(bill.service_start).toLocaleDateString([], {month:'short', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'short', day:'numeric'})}</div>
-                    <div class="text-xs text-zinc-400">${bill.days} days • ${bill.total_kwh} kWh</div>
+                    <div class="font-semibold">${startText} — ${endText}</div>
+                    <div class="text-xs text-zinc-400">${parsed.days} days • ${parsed.totalKwh} kWh</div>
                 </div>
-                <div class="text-right"><div class="font-semibold text-lg">${formatDollarAmount(bill.total_due)}</div></div>
+                <div class="text-right">
+                    <div class="font-semibold text-3xl">${formatDollarAmount(parsed.totalDue)}</div>
+                    <div class="text-xs text-zinc-500 mt-1">Total Due</div>
+                </div>
             </div>
             <div class="grid grid-cols-3 gap-2 text-sm">
-                <div><div class="text-[10px] text-zinc-400">Effective Rate</div><div class="font-semibold">${formatCents(eff)}</div></div>
-                <div><div class="text-[10px] text-zinc-400">vs Market</div><div class="font-semibold ${diffColor}">${diff > 0 ? '+' : ''}${diff.toFixed(2)}¢</div></div>
+                <div><div class="text-[10px] text-zinc-400">Effective Rate</div><div class="font-semibold">${formatCents(parsed.effectiveRate)}</div></div>
+                <div><div class="text-[10px] text-zinc-400">Market Avg</div><div class="font-semibold">${formatCents(parsed.marketAvg)}</div></div>
+                <div><div class="text-[10px] text-zinc-400">vs Market</div><div class="font-semibold ${diffColor}">${parsed.marketDiff > 0 ? '+' : ''}${parsed.marketDiff.toFixed(2)}¢</div></div>
             </div>
+            <div class="mt-4 flex gap-2">${seasonBadge}${creditBadge}</div>
         `;
         container.appendChild(el);
     });
@@ -391,9 +471,10 @@ function renderSummaryStats(bills) {
     }
 
     const totalBills = bills.length;
-    const totalSpent = bills.reduce((sum, b) => sum + (parseFloat(b.total_due) || 0), 0);
-    const avgRate = bills.reduce((sum, b) => sum + (parseFloat(b.effective_rate) || 0), 0) / totalBills;
-    const avgVsMarket = bills.reduce((sum, b) => sum + (parseFloat(b.market_vs_paid_diff) || 0), 0) / totalBills;
+    const normalized = bills.map(normalizeBillRecord);
+    const totalSpent = normalized.reduce((sum, b) => sum + b.totalDue, 0);
+    const avgRate = normalized.reduce((sum, b) => sum + b.effectiveRate, 0) / totalBills;
+    const avgVsMarket = normalized.reduce((sum, b) => sum + b.marketDiff, 0) / totalBills;
 
     animateSlotNumber(document.getElementById('total-bills'), totalBills);
     animateSlotNumber(document.getElementById('total-spent'), '$' + totalSpent.toFixed(2));
@@ -414,8 +495,14 @@ function showSkeleton() {}
 
 function showBillModal(bill) {
     const modal = document.getElementById('bill-modal');
+    const startText = bill.serviceStart
+        ? bill.serviceStart.toLocaleDateString([], { month: 'long', year: 'numeric' })
+        : 'Unknown';
+    const endText = bill.serviceEnd
+        ? bill.serviceEnd.toLocaleDateString([], { month: 'long', day: 'numeric' })
+        : 'Unknown';
     document.getElementById('modal-period').innerHTML = 
-        `${new Date(bill.service_start).toLocaleDateString([], {month:'long', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'long', day:'numeric'})}`;
+        `${startText} — ${endText}`;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
