@@ -267,3 +267,69 @@ button:focus-visible {
     font-size: 1.65rem;
     line-height: 1;
 }
+
+/* ============================================
+   MY BILLS TAB - CLEANER DESIGN
+   ============================================ */
+
+/* Summary Scorecards */
+#bills-tab-content .glass {
+    background-color: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 16px;
+    transition: all 0.2s ease;
+}
+
+#bills-tab-content .glass:hover {
+    border-color: #3f3f46;
+}
+
+/* Bill History Cards */
+.bill-card {
+    background-color: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 16px;
+    padding: 16px;
+    transition: all 0.2s ease;
+}
+
+.bill-card:hover {
+    background-color: #27272a;
+    border-color: #3f3f46;
+    transform: translateY(-1px);
+}
+
+/* Bill card text improvements */
+.bill-card .font-semibold {
+    font-size: 1.05rem;
+    letter-spacing: -0.3px;
+}
+
+.bill-card .text-xs {
+    color: #71717a;
+}
+
+/* Summary numbers in My Bills */
+#total-bills,
+#total-spent,
+#avg-effective-rate,
+#avg-vs-market {
+    font-size: 1.5rem;
+    line-height: 1.1;
+}
+
+/* Modal styling */
+#bill-modal .glass {
+    background-color: #18181b;
+    border: 1px solid #27272a;
+    border-radius: 24px 24px 0 0;
+}
+
+/* My Bills tab spacing */
+#bills-tab-content {
+    padding-top: 1rem;
+}
+
+#bills-tab-content .grid {
+    gap: 12px;
+}
