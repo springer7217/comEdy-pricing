@@ -16,12 +16,11 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     if (!element) return;
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
+    const digitHeightEm = 1.08;
 
     const finalStr = String(targetValue);
     const container = document.createElement('span');
-    container.style.display = 'inline-flex';
-    container.style.alignItems = 'flex-end';
-    container.style.gap = '1px';
+    container.className = 'slot-number';
 
     const match = finalStr.match(/^([\d.]+)(.*)$/);
     if (!match) {
@@ -35,19 +34,22 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     numericPart.split('').forEach((char, index) => {
         if (char === '.') {
             const dot = document.createElement('span');
+            dot.className = 'slot-decimal';
             dot.textContent = '.';
             container.appendChild(dot);
             return;
         }
 
         const reelWrapper = document.createElement('span');
+        reelWrapper.className = 'slot-reel-wrapper';
         reelWrapper.style.overflow = 'hidden';
         reelWrapper.style.display = 'inline-block';
-        reelWrapper.style.height = '1em';
+        reelWrapper.style.height = `${digitHeightEm}em`;
         reelWrapper.style.width = '0.5em';
         reelWrapper.style.position = 'relative';
 
         const reel = document.createElement('div');
+        reel.className = 'slot-reel';
         reel.style.position = 'absolute';
         reel.style.top = '0';
         reel.style.left = '0';
@@ -56,7 +58,7 @@ function animateSlotNumber(element, targetValue, duration = 800) {
         let stripHTML = '';
         for (let s = 0; s < 3; s++) {
             for (let d = 0; d <= 9; d++) {
-                stripHTML += `<div style="height:1em; line-height:1em; text-align:center;">${d}</div>`;
+                stripHTML += `<div style="height:${digitHeightEm}em; line-height:${digitHeightEm}em; text-align:center;">${d}</div>`;
             }
         }
         reel.innerHTML = stripHTML;
@@ -65,7 +67,7 @@ function animateSlotNumber(element, targetValue, duration = 800) {
 
         const digit = parseInt(char);
         const totalDigits = 30;
-        const finalTranslateY = -((totalDigits - 10 + digit) * 1);
+        const finalTranslateY = -((totalDigits - 10 + digit) * digitHeightEm);
 
         reel.style.transform = `translateY(0)`;
         setTimeout(() => {
@@ -75,6 +77,7 @@ function animateSlotNumber(element, targetValue, duration = 800) {
 
     if (suffix) {
         const suffixEl = document.createElement('span');
+        suffixEl.className = 'slot-suffix';
         suffixEl.textContent = suffix;
         container.appendChild(suffixEl);
     }
