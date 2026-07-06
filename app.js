@@ -21,7 +21,7 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
     const isCompactStatCard = ['avg-price', 'high-price', 'low-price'].includes(element.id);
-    const isBillsSummaryCard = ['total-bills', 'total-spent', 'avg-effective-rate', 'avg-vs-market'].includes(element.id);
+    const isBillsSummaryCard = ['total-bills', 'total-spent', 'avg-effective-rate', 'avg-vs-market', 'supply-spend', 'delivery-spend'].includes(element.id);
     const digitHeightEm = (isCompactStatCard || isBillsSummaryCard) ? 1.06 : 1.08;
     const digitWidthEm = isCompactStatCard ? 0.58 : (isBillsSummaryCard ? 0.56 : 0.54);
 
@@ -330,6 +330,7 @@ async function loadBills() {
     try {
         if (!supabaseClient) throw new Error('Supabase not ready');
         allBillsData = await fetchBillsData();
+        allBillsData = await hydrateBillsWithDetails(allBillsData);
         renderSummaryStats(allBillsData);
         renderBillSeasonFilters();
         applyBillSeasonFilter();
@@ -338,6 +339,19 @@ async function loadBills() {
         console.error('Bills loading error:', err);
         if (billsList) {
             billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills. Please try again.</div>`;
+        }
+
+        async function hydrateBillsWithDetails(bills) {
+            return Promise.all(bills.map(async (bill) => {
+                const parsed = normalizeBillRecord(bill);
+                const missingBreakdown = parsed.supplyCost === 0 && parsed.deliveryCost === 0 && parsed.taxesFees === 0;
+                const missingMarketDiff = parsed.marketDiff === 0;
+                if (!missingBreakdown && !missingMarketDiff) return bill;
+
+                const detail = await fetchBillDetailData(parsed);
+                if (!detail) return bill;
+                return { ...bill, ...detail };
+            }));
         }
         if (billCountEl) billCountEl.innerHTML = 'Error';
     }
@@ -380,6 +394,12 @@ function getNumeric(record, keys, fallback = 0) {
     return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function getOptionalNumeric(record, keys) {
+    const raw = getFirstValue(record, keys);
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
 function getDateValue(record, keys) {
     const raw = getFirstValue(record, keys);
     if (!raw) return null;
@@ -395,7 +415,8 @@ function normalizeBillRecord(bill) {
     const totalDue = getNumeric(bill, ['total_due', 'amount_due', 'bill_total', 'total']);
     const effectiveRate = getNumeric(bill, ['effective_rate', 'eff_rate', 'rate_paid']);
     const marketAvg = getNumeric(bill, ['market_avg_rate', 'market_rate', 'market_avg']);
-    const marketDiff = getNumeric(bill, ['market_vs_paid_diff', 'vs_market', 'market_diff'], 0);
+    const marketDiffRaw = getOptionalNumeric(bill, ['market_vs_paid_diff', 'vs_market', 'market_diff']);
+    const marketDiff = marketDiffRaw ?? (effectiveRate - marketAvg);
     const seasonRaw = getFirstValue(bill, ['season']) || '';
     const season = normalizeSeason(seasonRaw) || deriveSeasonFromDate(serviceStart);
     const credits = getNumeric(bill, ['credits', 'credits_applied', 'credit_amount'], 0);
@@ -592,6 +613,8 @@ function renderSummaryStats(bills) {
         document.getElementById('total-spent').textContent = '$0.00';
         document.getElementById('avg-effective-rate').textContent = '--';
         document.getElementById('avg-vs-market').textContent = '--';
+        document.getElementById('supply-spend').textContent = '$0.00';
+        document.getElementById('delivery-spend').textContent = '$0.00';
         return;
     }
 
@@ -600,11 +623,15 @@ function renderSummaryStats(bills) {
     const totalSpent = normalized.reduce((sum, b) => sum + b.totalDue, 0);
     const avgRate = normalized.reduce((sum, b) => sum + b.effectiveRate, 0) / totalBills;
     const avgVsMarket = normalized.reduce((sum, b) => sum + b.marketDiff, 0) / totalBills;
+    const totalSupplySpend = normalized.reduce((sum, b) => sum + b.supplyCost, 0);
+    const totalDeliverySpend = normalized.reduce((sum, b) => sum + b.deliveryCost, 0);
 
     animateSlotNumber(document.getElementById('total-bills'), totalBills);
     animateSlotNumber(document.getElementById('total-spent'), '$' + totalSpent.toFixed(2));
     animateSlotNumber(document.getElementById('avg-effective-rate'), avgRate.toFixed(2) + '¢');
     animateSlotNumber(document.getElementById('avg-vs-market'), `${avgVsMarket > 0 ? '+' : ''}${avgVsMarket.toFixed(2)}¢`);
+    animateSlotNumber(document.getElementById('supply-spend'), '$' + totalSupplySpend.toFixed(2));
+    animateSlotNumber(document.getElementById('delivery-spend'), '$' + totalDeliverySpend.toFixed(2));
 }
 
 // ==================== HELPERS ====================
