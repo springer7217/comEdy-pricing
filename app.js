@@ -11,6 +11,7 @@ let currentFilterHours = 24;
 let priceChart = null;
 let currentRecentReadings = [];
 const BILL_TABLE_CANDIDATES = ['bills', 'comed_bills', 'bill_history'];
+const BILL_DETAIL_TABLE_CANDIDATES = ['bill_details', 'bill_line_items', 'bills_details', 'bill_breakdown'];
 
 // ==================== SIMPLE SLOT MACHINE ====================
 function animateSlotNumber(element, targetValue, duration = 800) {
@@ -392,11 +393,21 @@ function normalizeBillRecord(bill) {
     const marketDiff = getNumeric(bill, ['market_vs_paid_diff', 'vs_market', 'market_diff'], 0);
     const season = getFirstValue(bill, ['season']) || '';
     const credits = getNumeric(bill, ['credits', 'credits_applied', 'credit_amount'], 0);
-    const supplyCost = getNumeric(bill, ['supply_cost', 'supply_total', 'energy_cost', 'supply_charge']);
-    const supplyRate = getNumeric(bill, ['supply_rate', 'supply_rate_cents', 'energy_rate']);
-    const deliveryCost = getNumeric(bill, ['delivery_cost', 'delivery_total', 'delivery_charge', 'wires_cost']);
-    const deliveryRate = getNumeric(bill, ['delivery_rate', 'delivery_rate_cents', 'wires_rate']);
-    const taxesFees = getNumeric(bill, ['taxes_fees', 'taxes_and_fees', 'taxes', 'fees_total']);
+    const supplyCost = getNumeric(bill, [
+        'supply_cost', 'supply_total', 'energy_cost', 'supply_charge', 'supply_amount', 'energy_amount'
+    ]);
+    const supplyRate = getNumeric(bill, [
+        'supply_rate', 'supply_rate_cents', 'energy_rate', 'supply_rate_per_kwh', 'energy_rate_per_kwh'
+    ]);
+    const deliveryCost = getNumeric(bill, [
+        'delivery_cost', 'delivery_total', 'delivery_charge', 'wires_cost', 'wires_total', 'delivery_amount'
+    ]);
+    const deliveryRate = getNumeric(bill, [
+        'delivery_rate', 'delivery_rate_cents', 'wires_rate', 'delivery_rate_per_kwh', 'wires_rate_per_kwh'
+    ]);
+    const taxesFees = getNumeric(bill, [
+        'taxes_fees', 'taxes_and_fees', 'taxes', 'fees_total', 'taxes_and_fees_total', 'taxes_total'
+    ]);
 
     return {
         raw: bill,
@@ -416,6 +427,61 @@ function normalizeBillRecord(bill) {
         deliveryRate,
         taxesFees
     };
+}
+
+async function fetchBillDetailData(parsedBill) {
+    if (!supabaseClient || !parsedBill || !parsedBill.raw) return null;
+
+    const raw = parsedBill.raw;
+    const idValue = getFirstValue(raw, ['id', 'bill_id', 'statement_id', 'record_id']);
+    const startValue = getFirstValue(raw, ['service_start', 'period_start', 'start_date', 'bill_start']);
+    const endValue = getFirstValue(raw, ['service_end', 'period_end', 'end_date', 'bill_end']);
+
+    const idColumns = ['bill_id', 'statement_id', 'id', 'record_id'];
+    const startColumns = ['service_start', 'period_start', 'start_date', 'bill_start'];
+    const endColumns = ['service_end', 'period_end', 'end_date', 'bill_end'];
+
+    for (const table of BILL_DETAIL_TABLE_CANDIDATES) {
+        if (idValue !== null) {
+            for (const idColumn of idColumns) {
+                const row = await querySingleRow(table, [[idColumn, idValue]]);
+                if (row) return row;
+            }
+        }
+
+        if (startValue !== null) {
+            for (const startColumn of startColumns) {
+                const row = await querySingleRow(table, [[startColumn, startValue]]);
+                if (row) return row;
+
+                if (endValue !== null) {
+                    for (const endColumn of endColumns) {
+                        const withRange = await querySingleRow(table, [
+                            [startColumn, startValue],
+                            [endColumn, endValue]
+                        ]);
+                        if (withRange) return withRange;
+                    }
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+async function querySingleRow(table, filters) {
+    try {
+        let query = supabaseClient.from(table).select('*').limit(1);
+        for (const [column, value] of filters) {
+            query = query.eq(column, value);
+        }
+        const { data, error } = await query;
+        if (error || !data || data.length === 0) return null;
+        return data[0];
+    } catch {
+        return null;
+    }
 }
 
 function renderBillsList(bills) {
@@ -508,25 +574,14 @@ function formatCentsCompact(rate) {
 
 function showSkeleton() {}
 
-function showBillModal(bill) {
-    const parsed = bill && (bill.serviceStart !== undefined || bill.raw) ? bill : normalizeBillRecord(bill || {});
-    const modal = document.getElementById('bill-modal');
-    const modalContent = document.getElementById('modal-content');
-    const startText = parsed.serviceStart
-        ? parsed.serviceStart.toLocaleDateString([], { month: 'long', year: 'numeric' })
-        : 'Unknown';
-    const endText = parsed.serviceEnd
-        ? parsed.serviceEnd.toLocaleDateString([], { month: 'long', day: 'numeric' })
-        : 'Unknown';
+function renderBillModalContent(parsed) {
     const diffColor = parsed.marketDiff > 0 ? 'text-red-400' : 'text-emerald-400';
     const seasonText = parsed.season ? String(parsed.season).toLowerCase() : 'n/a';
     const supplyRateText = parsed.supplyRate > 0 ? ` (${formatCentsCompact(parsed.supplyRate)}/kWh)` : '';
     const deliveryRateText = parsed.deliveryRate > 0 ? ` (${formatCentsCompact(parsed.deliveryRate)}/kWh)` : '';
     const marketDiffText = `${parsed.marketDiff > 0 ? '+' : ''}${parsed.marketDiff.toFixed(2)}¢ vs market`;
 
-    document.getElementById('modal-period').innerHTML = 
-        `${startText} — ${endText}`;
-    modalContent.innerHTML = `
+    return `
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <div class="text-zinc-400 text-sm">Total kWh</div>
@@ -567,8 +622,30 @@ function showBillModal(bill) {
         </div>
         <button onclick="closeBillModal()" class="mt-2 w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-lg">Close</button>
     `;
+}
+
+async function showBillModal(bill) {
+    const parsed = bill && (bill.serviceStart !== undefined || bill.raw) ? bill : normalizeBillRecord(bill || {});
+    const modal = document.getElementById('bill-modal');
+    const modalContent = document.getElementById('modal-content');
+    const startText = parsed.serviceStart
+        ? parsed.serviceStart.toLocaleDateString([], { month: 'long', year: 'numeric' })
+        : 'Unknown';
+    const endText = parsed.serviceEnd
+        ? parsed.serviceEnd.toLocaleDateString([], { month: 'long', day: 'numeric' })
+        : 'Unknown';
+
+    document.getElementById('modal-period').innerHTML = 
+        `${startText} — ${endText}`;
+    modalContent.innerHTML = renderBillModalContent(parsed);
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+
+    const detailed = await fetchBillDetailData(parsed);
+    if (detailed) {
+        const hydrated = normalizeBillRecord({ ...(parsed.raw || {}), ...detailed });
+        modalContent.innerHTML = renderBillModalContent(hydrated);
+    }
 }
 
 function closeBillModal() {
