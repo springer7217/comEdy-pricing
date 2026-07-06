@@ -10,6 +10,7 @@ const LOAD_MORE_AMOUNT = 10;
 let currentFilterHours = 24;
 let priceChart = null;
 let billBreakdownChart = null;
+let billRecordBreakdownChart = null;
 let currentRecentReadings = [];
 const BILL_TABLE_CANDIDATES = ['bills', 'comed_bills', 'bill_history'];
 const BILL_DETAIL_TABLE_CANDIDATES = ['bill_details', 'bill_line_items', 'bills_details', 'bill_breakdown'];
@@ -741,16 +742,43 @@ function renderSummaryStats(bills) {
 
 function hideLiveStatDetail() {
     const panel = document.getElementById('live-stat-detail');
-    if (panel) panel.classList.add('hidden');
+    hideScorecardDetailPanel(panel);
     document.querySelectorAll('[data-live-stat-detail]').forEach((card) => card.classList.remove('active-scorecard'));
     activeLiveDetailKey = null;
 }
 
 function hideBillsSummaryDetail() {
     const panel = document.getElementById('bills-summary-detail');
-    if (panel) panel.classList.add('hidden');
+    hideScorecardDetailPanel(panel);
     document.querySelectorAll('[data-bills-summary-detail]').forEach((card) => card.classList.remove('active-scorecard'));
     activeBillsDetailKey = null;
+}
+
+function showScorecardDetailPanel(panel) {
+    if (!panel) return;
+    if (panel._hideTimer) {
+        clearTimeout(panel._hideTimer);
+        panel._hideTimer = null;
+    }
+    panel.classList.remove('hidden');
+    panel.classList.remove('pop-out');
+    panel.classList.remove('pop-in');
+    requestAnimationFrame(() => panel.classList.add('pop-in'));
+}
+
+function hideScorecardDetailPanel(panel) {
+    if (!panel || panel.classList.contains('hidden')) return;
+    if (panel._hideTimer) {
+        clearTimeout(panel._hideTimer);
+        panel._hideTimer = null;
+    }
+    panel.classList.remove('pop-in');
+    panel.classList.add('pop-out');
+    panel._hideTimer = setTimeout(() => {
+        panel.classList.add('hidden');
+        panel.classList.remove('pop-out');
+        panel._hideTimer = null;
+    }, 180);
 }
 
 function showLiveStatDetail(type) {
@@ -758,14 +786,11 @@ function showLiveStatDetail(type) {
     if (!panel) return;
     if (!currentLiveStatMeta) {
         panel.innerHTML = `<div class="scorecard-detail-content"><div class="scorecard-detail-title">Loading</div><div class="scorecard-detail-subtitle">Waiting for live pricing data to load.</div></div>`;
-        panel.classList.remove('hidden');
-        panel.classList.remove('pop-in');
-        requestAnimationFrame(() => panel.classList.add('pop-in'));
+        showScorecardDetailPanel(panel);
         return;
     }
     if (activeLiveDetailKey === type && !panel.classList.contains('hidden')) {
-        panel.classList.add('hidden');
-        activeLiveDetailKey = null;
+        hideLiveStatDetail();
         return;
     }
 
@@ -777,9 +802,7 @@ function showLiveStatDetail(type) {
     if (type === 'avg') {
         title = `AVG PRICE (${hoursText})`;
         value = formatLivePrice(currentLiveStatMeta.avg);
-        const from = formatFriendlyDateTime(currentLiveStatMeta.earliestRow?.recorded_at);
-        const to = formatFriendlyDateTime(currentLiveStatMeta.latestRow?.recorded_at);
-        subtitle = `Computed from ${from} to ${to}.`;
+        subtitle = formatDateRange(currentLiveStatMeta.earliestRow?.recorded_at, currentLiveStatMeta.latestRow?.recorded_at);
     } else if (type === 'high') {
         title = `HIGH PRICE (${hoursText})`;
         value = formatLivePrice(currentLiveStatMeta.high);
@@ -791,9 +814,7 @@ function showLiveStatDetail(type) {
     }
 
     panel.innerHTML = `<div class="scorecard-detail-content"><div class="scorecard-detail-title">${title}</div><div class="scorecard-detail-value">${value}</div><div class="scorecard-detail-subtitle">${subtitle}</div></div>`;
-    panel.classList.remove('hidden');
-    panel.classList.remove('pop-in');
-    requestAnimationFrame(() => panel.classList.add('pop-in'));
+    showScorecardDetailPanel(panel);
     document.querySelectorAll('[data-live-stat-detail]').forEach((card) => {
         card.classList.toggle('active-scorecard', card.dataset.liveStatDetail === type);
     });
@@ -805,14 +826,11 @@ function showBillsSummaryDetail(key) {
     if (!panel) return;
     if (!currentSummaryMeta) {
         panel.innerHTML = `<div class="scorecard-detail-content"><div class="scorecard-detail-title">Loading</div><div class="scorecard-detail-subtitle">Waiting for bill summary data to load.</div></div>`;
-        panel.classList.remove('hidden');
-        panel.classList.remove('pop-in');
-        requestAnimationFrame(() => panel.classList.add('pop-in'));
+        showScorecardDetailPanel(panel);
         return;
     }
     if (activeBillsDetailKey === key && !panel.classList.contains('hidden')) {
-        panel.classList.add('hidden');
-        activeBillsDetailKey = null;
+        hideBillsSummaryDetail();
         return;
     }
 
@@ -845,9 +863,7 @@ function showBillsSummaryDetail(key) {
     if (!detail) return;
 
     panel.innerHTML = `<div class="scorecard-detail-content"><div class="scorecard-detail-title">${detail.title}</div><div class="scorecard-detail-value">${detail.value}</div><div class="scorecard-detail-subtitle">${detail.subtitle}</div></div>`;
-    panel.classList.remove('hidden');
-    panel.classList.remove('pop-in');
-    requestAnimationFrame(() => panel.classList.add('pop-in'));
+    showScorecardDetailPanel(panel);
     document.querySelectorAll('[data-bills-summary-detail]').forEach((card) => {
         card.classList.toggle('active-scorecard', card.dataset.billsSummaryDetail === key);
     });
@@ -970,6 +986,14 @@ function formatFriendlyDateTime(timestamp) {
     return d.toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+function formatDateRange(startTimestamp, endTimestamp) {
+    const start = new Date(startTimestamp);
+    const end = new Date(endTimestamp);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 'Date range unavailable';
+    const opts = { month: 'long', day: 'numeric' };
+    return `${start.toLocaleDateString([], opts)} - ${end.toLocaleDateString([], opts)}`;
+}
+
 function showSkeleton() {}
 
 function renderBillModalContent(parsed) {
@@ -1019,6 +1043,12 @@ function renderBillModalContent(parsed) {
             <span class="inline-flex px-3 py-1 rounded-full text-xs tracking-wide text-sky-300 bg-sky-500/10">${seasonText}</span>
             ${parsed.hasCredits ? '<span class="inline-flex px-3 py-1 rounded-full text-xs tracking-wide text-emerald-300 bg-emerald-500/10">Credits</span>' : ''}
         </div>
+        <div class="border-t border-zinc-700/80 pt-4 mt-1">
+            <div class="text-zinc-400 text-sm mb-2">Cost Breakdown</div>
+            <div class="bill-record-chart-wrap">
+                <canvas id="bill-record-breakdown-chart"></canvas>
+            </div>
+        </div>
         <button onclick="closeBillModal()" class="mt-2 w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-lg">Close</button>
     `;
 }
@@ -1037,6 +1067,7 @@ async function showBillModal(bill) {
     document.getElementById('modal-period').innerHTML = 
         `${startText} — ${endText}`;
     modalContent.innerHTML = renderBillModalContent(parsed);
+    renderBillRecordBreakdownChart(parsed);
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 
@@ -1044,14 +1075,85 @@ async function showBillModal(bill) {
     if (detailed) {
         const hydrated = normalizeBillRecord({ ...(parsed.raw || {}), ...detailed });
         modalContent.innerHTML = renderBillModalContent(hydrated);
+        renderBillRecordBreakdownChart(hydrated);
     }
 }
 
 function closeBillModal() {
     const modal = document.getElementById('bill-modal');
     if (!modal) return;
+    if (billRecordBreakdownChart) {
+        billRecordBreakdownChart.destroy();
+        billRecordBreakdownChart = null;
+    }
     modal.classList.remove('flex');
     modal.classList.add('hidden');
+}
+
+function renderBillRecordBreakdownChart(parsed) {
+    const chartEl = document.getElementById('bill-record-breakdown-chart');
+    if (!chartEl) return;
+    if (billRecordBreakdownChart) {
+        billRecordBreakdownChart.destroy();
+    }
+
+    const supply = Number(parsed?.supplyCost || 0);
+    const delivery = Number(parsed?.deliveryCost || 0);
+    const taxes = Number(parsed?.taxesFees || 0);
+    const total = supply + delivery + taxes;
+
+    if (!total) {
+        billRecordBreakdownChart = new Chart(chartEl, {
+            type: 'pie',
+            data: {
+                labels: ['No data'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#3f3f46'],
+                    borderColor: ['#52525b'],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'bottom', labels: { color: '#a1a1aa', boxWidth: 10, padding: 10 } },
+                    tooltip: { enabled: false }
+                }
+            }
+        });
+        return;
+    }
+
+    billRecordBreakdownChart = new Chart(chartEl, {
+        type: 'pie',
+        data: {
+            labels: ['Supply', 'Delivery', 'Taxes & Fees'],
+            datasets: [{
+                data: [supply, delivery, taxes],
+                backgroundColor: ['#22c55e', '#38bdf8', '#f59e0b'],
+                borderColor: ['#14532d', '#0c4a6e', '#78350f'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#e4e4e7', boxWidth: 10, padding: 10 } },
+                tooltip: {
+                    callbacks: {
+                        label(context) {
+                            const value = Number(context.raw || 0);
+                            const pct = total ? ((value / total) * 100).toFixed(1) : '0.0';
+                            return `${context.label}: ${formatDollarAmount(value)} (${pct}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 // ==================== INIT ====================

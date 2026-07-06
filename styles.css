@@ -399,6 +399,10 @@ body {
     animation: scorecard-detail-pop 220ms ease-out;
 }
 
+.scorecard-detail-panel.pop-out {
+    animation: scorecard-detail-pop-out 180ms ease-in forwards;
+}
+
 .scorecard-detail-content {
     padding: 0.9rem 1rem;
 }
@@ -434,6 +438,17 @@ body {
     100% {
         opacity: 1;
         transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes scorecard-detail-pop-out {
+    0% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translateY(8px) scale(0.99);
     }
 }
 
@@ -634,6 +649,12 @@ button:focus-visible {
 .bill-breakdown-chart-wrap {
     position: relative;
     height: 240px;
+    width: 100%;
+}
+
+.bill-record-chart-wrap {
+    position: relative;
+    height: 190px;
     width: 100%;
 }
 
