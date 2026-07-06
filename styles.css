@@ -14,6 +14,10 @@ body {
     display: flex !important;
 }
 
+.hidden.flex {
+    display: none !important;
+}
+
 .glass {
     background: rgba(39, 39, 42, 0.85);
     backdrop-filter: blur(20px);
@@ -145,6 +149,8 @@ body {
     padding-right: 1.5rem;
     padding-top: 1.1rem;
     margin-top: 0.4rem;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .now-card {
@@ -155,9 +161,9 @@ body {
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 14px 30px rgba(0, 0, 0, 0.24);
     position: relative;
     overflow: hidden;
-    display: inline-block;
-    width: 0.52em !important;
-    min-width: 0.52em;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 #current-price .slot-reel-wrapper {
@@ -183,6 +189,12 @@ body {
     flex-shrink: 0;
 }
 
+.slot-static {
+    display: inline-flex;
+    align-items: flex-end;
+    flex-shrink: 0;
+}
+
 .now-card::after {
     content: "";
     position: absolute;
@@ -194,17 +206,19 @@ body {
 }
 
 .now-card-content {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
     gap: 0.95rem;
-    min-height: 8.85rem;
+    min-height: 9rem;
     position: relative;
     z-index: 1;
+    width: 100%;
 }
 
 .now-card-main {
     min-width: 0;
+    flex: 1 1 auto;
 }
 
 .now-card-label {
@@ -227,6 +241,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex: 0 0 auto;
     width: 6.1rem;
     height: 6.1rem;
     border-radius: 1.4rem;
@@ -234,7 +249,7 @@ body {
 }
 
 #current-price.current-price-value {
-    font-size: clamp(3rem, 12vw, 4rem);
+    font-size: clamp(2.7rem, 11vw, 4rem);
     line-height: 1.03;
     letter-spacing: -0.05em;
     margin-top: 0.52rem;
@@ -275,14 +290,14 @@ body {
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0.6rem;
+    gap: 0.72rem;
 }
 
 .price-stat-card {
     background: linear-gradient(165deg, rgba(42, 42, 48, 0.94), rgba(28, 28, 34, 0.94));
     border-color: #30303a;
     border-radius: 1rem;
-    padding: 0.8rem 0.74rem 0.74rem;
+    padding: 0.82rem 0.74rem 0.78rem;
     min-width: 0;
 }
 
@@ -305,15 +320,16 @@ body {
 }
 
 .scorecard-value.stat-value {
-    font-size: clamp(1.05rem, 4.9vw, 1.45rem) !important;
-    line-height: 1.14;
-    letter-spacing: -0.02em;
+    font-size: clamp(0.88rem, 3.9vw, 1.12rem) !important;
+    line-height: 1.28;
+    letter-spacing: -0.01em;
     white-space: nowrap;
     overflow: visible !important;
     display: flex;
     align-items: flex-end;
-    min-height: 1.24em;
+    min-height: 1.42em;
     margin-top: 0.22rem;
+    padding-right: 0.06em;
 }
 
 .slot-number {
@@ -340,22 +356,8 @@ body {
     min-width: 0.5em;
 }
 
-.scorecard-value.stat-value .slot-reel-wrapper {
-    width: 0.46em !important;
-    min-width: 0.46em;
-}
-
 .scorecard-value.stat-value .slot-number {
-    gap: 0;
-}
-
-.scorecard-value.stat-value .slot-decimal {
-    margin: 0 -0.02em;
-}
-
-.scorecard-value.stat-value .slot-suffix {
-    padding-left: 0;
-    font-size: 0.94em;
+    gap: 0.01em;
 }
 
 .slot-reel {
@@ -471,6 +473,36 @@ button:focus-visible {
     transform: translateY(-1px);
 }
 
+.bill-season-filters {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin: 0 0 0.95rem;
+}
+
+.bill-season-chip {
+    border: 1px solid #2f2f39;
+    background: #1a1a22;
+    color: #a1a1aa;
+    padding: 0.38rem 0.9rem;
+    border-radius: 999px;
+    font-size: 0.86rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.bill-season-chip:hover {
+    color: #e4e4e7;
+    border-color: #3f3f46;
+}
+
+.bill-season-chip.active {
+    background: #22c55e;
+    border-color: #22c55e;
+    color: #052e16;
+}
+
 /* Bill card text improvements */
 .bill-card .font-semibold {
     font-size: 1.05rem;
@@ -485,9 +517,24 @@ button:focus-visible {
 #total-bills,
 #total-spent,
 #avg-effective-rate,
-#avg-vs-market {
-    font-size: 1.5rem;
-    line-height: 1.1;
+#avg-vs-market,
+#supply-spend,
+#delivery-spend {
+    font-size: clamp(1.25rem, 5.2vw, 1.7rem);
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: visible;
+    min-height: 1.24em;
+}
+
+#total-bills .slot-number,
+#total-spent .slot-number,
+#avg-effective-rate .slot-number,
+#avg-vs-market .slot-number,
+#supply-spend .slot-number,
+#delivery-spend .slot-number {
+    gap: 0.01em;
 }
 
 /* Modal styling */

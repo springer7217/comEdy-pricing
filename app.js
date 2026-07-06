@@ -10,6 +10,10 @@ const LOAD_MORE_AMOUNT = 10;
 let currentFilterHours = 24;
 let priceChart = null;
 let currentRecentReadings = [];
+const BILL_TABLE_CANDIDATES = ['bills', 'comed_bills', 'bill_history'];
+const BILL_DETAIL_TABLE_CANDIDATES = ['bill_details', 'bill_line_items', 'bills_details', 'bill_breakdown'];
+const BILL_SEASONS = ['all', 'spring', 'summer', 'fall', 'winter'];
+let activeBillSeasonFilter = 'all';
 
 // ==================== SIMPLE SLOT MACHINE ====================
 function animateSlotNumber(element, targetValue, duration = 800) {
@@ -17,27 +21,21 @@ function animateSlotNumber(element, targetValue, duration = 800) {
     element.innerHTML = '';
     element.style.fontVariantNumeric = 'tabular-nums';
     const isCompactStatCard = ['avg-price', 'high-price', 'low-price'].includes(element.id);
-    const digitHeightEm = isCompactStatCard ? 1.02 : 1.08;
+    const isBillsSummaryCard = ['total-bills', 'total-spent', 'avg-effective-rate', 'avg-vs-market', 'supply-spend', 'delivery-spend'].includes(element.id);
+    const digitHeightEm = (isCompactStatCard || isBillsSummaryCard) ? 1.06 : 1.08;
+    const digitWidthEm = isCompactStatCard ? 0.58 : (isBillsSummaryCard ? 0.56 : 0.54);
 
     const finalStr = String(targetValue);
     const container = document.createElement('span');
     container.className = 'slot-number';
+    let animatedDigitIndex = 0;
 
-    const match = finalStr.match(/^([\d.]+)(.*)$/);
-    if (!match) {
-        element.textContent = finalStr;
-        return;
-    }
-
-    const numericPart = match[1];
-    const suffix = match[2] || '';
-
-    numericPart.split('').forEach((char, index) => {
-        if (char === '.') {
-            const dot = document.createElement('span');
-            dot.className = 'slot-decimal';
-            dot.textContent = '.';
-            container.appendChild(dot);
+    finalStr.split('').forEach((char) => {
+        if (!/\d/.test(char)) {
+            const staticChar = document.createElement('span');
+            staticChar.className = char === '.' ? 'slot-decimal' : 'slot-static';
+            staticChar.textContent = char;
+            container.appendChild(staticChar);
             return;
         }
 
@@ -46,7 +44,7 @@ function animateSlotNumber(element, targetValue, duration = 800) {
         reelWrapper.style.overflow = 'hidden';
         reelWrapper.style.display = 'inline-block';
         reelWrapper.style.height = `${digitHeightEm}em`;
-        reelWrapper.style.width = '0.5em';
+        reelWrapper.style.width = `${digitWidthEm}em`;
         reelWrapper.style.position = 'relative';
 
         const reel = document.createElement('div');
@@ -66,24 +64,29 @@ function animateSlotNumber(element, targetValue, duration = 800) {
         reelWrapper.appendChild(reel);
         container.appendChild(reelWrapper);
 
-        const digit = parseInt(char);
+        const digit = parseInt(char, 10);
         const totalDigits = 30;
         const finalTranslateY = -((totalDigits - 10 + digit) * digitHeightEm);
 
         reel.style.transform = `translateY(0)`;
         setTimeout(() => {
             reel.style.transform = `translateY(${finalTranslateY}em)`;
-        }, 20 + (index * 40));
+        }, 20 + (animatedDigitIndex * 40));
+
+        animatedDigitIndex += 1;
     });
 
-    if (suffix) {
-        const suffixEl = document.createElement('span');
-        suffixEl.className = 'slot-suffix';
-        suffixEl.textContent = suffix;
-        container.appendChild(suffixEl);
-    }
-
     element.appendChild(container);
+
+    const shouldSettleToStatic = isCompactStatCard || isBillsSummaryCard || element.id === 'current-price';
+    if (shouldSettleToStatic) {
+        const settleDelay = duration + (animatedDigitIndex * 40) + 80;
+        setTimeout(() => {
+            if (element) {
+                element.textContent = finalStr;
+            }
+        }, settleDelay);
+    }
 }
 
 // ==================== TAB SWITCHING ====================
@@ -97,6 +100,7 @@ function switchTab(tab) {
     billsBtn.classList.remove('active');
 
     if (tab === 'live') {
+        closeBillModal();
         billsContent.style.transition = 'all 0.2s ease';
         billsContent.style.opacity = '0';
 
@@ -131,6 +135,7 @@ function switchTab(tab) {
 
 // ==================== SUPABASE ====================
 function initializeSupabase() {
+    closeBillModal();
     if (window.supabase && typeof window.supabase.createClient === 'function') {
         supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         loadData();
@@ -182,7 +187,7 @@ function filterData(hours) {
 
     const latest = allPriceData[0];
     const price = parseFloat(latest.price);
-    animateSlotNumber(document.getElementById('current-price'), price.toFixed(1) + '¢');
+    animateSlotNumber(document.getElementById('current-price'), formatLivePrice(price));
     document.getElementById('current-emoji').innerHTML = getEmoji(price);
     document.getElementById('current-time').innerHTML = 
         `Updated ${new Date(latest.recorded_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}`;
@@ -192,9 +197,9 @@ function filterData(hours) {
     const high = Math.max(...prices);
     const low = Math.min(...prices);
 
-    animateSlotNumber(document.getElementById('avg-price'), avg.toFixed(1) + '¢');
-    animateSlotNumber(document.getElementById('high-price'), high.toFixed(1) + '¢');
-    animateSlotNumber(document.getElementById('low-price'), low.toFixed(1) + '¢');
+    animateSlotNumber(document.getElementById('avg-price'), formatLivePrice(avg));
+    animateSlotNumber(document.getElementById('high-price'), formatLivePrice(high));
+    animateSlotNumber(document.getElementById('low-price'), formatLivePrice(low));
 
     updateChart(filtered);
     renderRecentList(currentRecentReadings);
@@ -211,6 +216,14 @@ function getEmoji(price) {
     if (price <= 8) return '🟢';
     if (price <= 10) return '🟡';
     return '🔴';
+}
+
+function formatLivePrice(centsValue) {
+    const cents = Number(centsValue);
+    if (Math.abs(cents) >= 100) {
+        return `$${(cents / 100).toFixed(2)}`;
+    }
+    return `${cents.toFixed(1)}¢`;
 }
 
 function renderRecentList(filteredData) {
@@ -233,7 +246,7 @@ function renderRecentList(filteredData) {
             <div class="flex items-center gap-3.5">
                 <span class="text-3xl">${getEmoji(p)}</span>
                 <div>
-                    <div class="font-semibold text-xl tracking-tight">${p.toFixed(1)}<span class="text-sm font-normal text-zinc-400">¢</span></div>
+                    <div class="font-semibold text-xl tracking-tight">${formatLivePrice(p)}</div>
                     <div class="text-[10px] text-zinc-500 -mt-0.5">
                         ${dateStr} · ${timeStr}
                     </div>
@@ -316,24 +329,235 @@ async function loadBills() {
 
     try {
         if (!supabaseClient) throw new Error('Supabase not ready');
-
-        const { data, error } = await supabaseClient
-            .from('bills')
-            .select('*')
-            .order('service_start', { ascending: false });
-
-        if (error) throw error;
-
-        allBillsData = data || [];
+        allBillsData = await fetchBillsData();
         renderSummaryStats(allBillsData);
-        renderBillsList(allBillsData);
+        renderBillSeasonFilters();
+        applyBillSeasonFilter();
+
+        hydrateBillsWithDetails(allBillsData)
+            .then((hydrated) => {
+                allBillsData = hydrated;
+                applyBillSeasonFilter();
+            })
+            .catch((detailErr) => {
+                console.error('Bill detail hydration error:', detailErr);
+            });
 
     } catch (err) {
-        console.error('Bills loading error:', err);
+        console.error('Bills loading error:', err?.message || err, err?.details || '', err?.hint || '');
         if (billsList) {
-            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills.</div>`;
+            billsList.innerHTML = `<div class="text-center py-6 text-red-400 text-sm">Failed to load bills. Please try again.</div>`;
         }
         if (billCountEl) billCountEl.innerHTML = 'Error';
+    }
+}
+
+async function hydrateBillsWithDetails(bills) {
+    return Promise.all((bills || []).map(async (bill) => {
+        const parsed = normalizeBillRecord(bill);
+        const missingBreakdown = parsed.supplyCost === 0 && parsed.deliveryCost === 0 && parsed.taxesFees === 0;
+        const missingMarketDiff = parsed.marketDiff === 0;
+        if (!missingBreakdown && !missingMarketDiff) return bill;
+
+        const detail = await fetchBillDetailData(parsed);
+        if (!detail) return bill;
+        return { ...bill, ...detail };
+    }));
+}
+
+async function fetchBillsData() {
+    for (const table of BILL_TABLE_CANDIDATES) {
+        const { data, error } = await supabaseClient
+            .from(table)
+            .select('*')
+            .limit(500);
+
+        if (!error) {
+            return sortBillsNewestFirst(data || []);
+        }
+    }
+    throw new Error('No readable bills table found');
+}
+
+function sortBillsNewestFirst(rows) {
+    return rows.slice().sort((a, b) => {
+        const aTime = getDateValue(a, ['service_start', 'period_start', 'start_date', 'bill_start'])?.getTime() || 0;
+        const bTime = getDateValue(b, ['service_start', 'period_start', 'start_date', 'bill_start'])?.getTime() || 0;
+        return bTime - aTime;
+    });
+}
+
+function getFirstValue(record, keys) {
+    for (const key of keys) {
+        if (record && record[key] !== undefined && record[key] !== null && record[key] !== '') {
+            return record[key];
+        }
+    }
+    return null;
+}
+
+function getNumeric(record, keys, fallback = 0) {
+    const raw = getFirstValue(record, keys);
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function getOptionalNumeric(record, keys) {
+    const raw = getFirstValue(record, keys);
+    const parsed = parseFloat(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getDateValue(record, keys) {
+    const raw = getFirstValue(record, keys);
+    if (!raw) return null;
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function normalizeBillRecord(bill) {
+    const serviceStart = getDateValue(bill, ['service_start', 'period_start', 'start_date', 'bill_start']);
+    const serviceEnd = getDateValue(bill, ['service_end', 'period_end', 'end_date', 'bill_end']);
+    const days = getNumeric(bill, ['days', 'service_days', 'period_days']);
+    const totalKwh = getNumeric(bill, ['total_kwh', 'kwh', 'usage_kwh']);
+    const totalDue = getNumeric(bill, ['total_due', 'amount_due', 'bill_total', 'total']);
+    const effectiveRate = getNumeric(bill, ['effective_rate', 'eff_rate', 'rate_paid']);
+    const marketAvg = getNumeric(bill, ['market_avg_rate', 'market_rate', 'market_avg']);
+    const marketDiffRaw = getOptionalNumeric(bill, ['market_vs_paid_diff', 'vs_market', 'market_diff']);
+    const marketDiff = marketDiffRaw ?? (effectiveRate - marketAvg);
+    const seasonRaw = getFirstValue(bill, ['season']) || '';
+    const season = normalizeSeason(seasonRaw) || deriveSeasonFromDate(serviceStart);
+    const credits = getNumeric(bill, ['credits', 'credits_applied', 'credit_amount'], 0);
+    const supplyCost = getNumeric(bill, [
+        'supply_cost', 'supply_total', 'energy_cost', 'supply_charge', 'supply_amount', 'energy_amount'
+    ]);
+    const supplyRate = getNumeric(bill, [
+        'supply_rate', 'supply_rate_cents', 'energy_rate', 'supply_rate_per_kwh', 'energy_rate_per_kwh'
+    ]);
+    const deliveryCost = getNumeric(bill, [
+        'delivery_cost', 'delivery_total', 'delivery_charge', 'wires_cost', 'wires_total', 'delivery_amount'
+    ]);
+    const deliveryRate = getNumeric(bill, [
+        'delivery_rate', 'delivery_rate_cents', 'wires_rate', 'delivery_rate_per_kwh', 'wires_rate_per_kwh'
+    ]);
+    const taxesFees = getNumeric(bill, [
+        'taxes_fees', 'taxes_and_fees', 'taxes', 'fees_total', 'taxes_and_fees_total', 'taxes_total'
+    ]);
+
+    return {
+        raw: bill,
+        serviceStart,
+        serviceEnd,
+        days,
+        totalKwh,
+        totalDue,
+        effectiveRate,
+        marketAvg,
+        marketDiff,
+        season,
+        hasCredits: credits > 0,
+        supplyCost,
+        supplyRate,
+        deliveryCost,
+        deliveryRate,
+        taxesFees
+    };
+}
+
+function normalizeSeason(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (raw.includes('spring')) return 'spring';
+    if (raw.includes('summer')) return 'summer';
+    if (raw.includes('fall') || raw.includes('autumn')) return 'fall';
+    if (raw.includes('winter')) return 'winter';
+    return '';
+}
+
+function deriveSeasonFromDate(dateValue) {
+    if (!dateValue || Number.isNaN(dateValue.getTime())) return '';
+    const month = dateValue.getMonth(); // 0-11
+    if (month >= 2 && month <= 4) return 'spring';
+    if (month >= 5 && month <= 7) return 'summer';
+    if (month >= 8 && month <= 10) return 'fall';
+    return 'winter';
+}
+
+function renderBillSeasonFilters() {
+    const container = document.getElementById('bill-season-filters');
+    if (!container) return;
+    container.innerHTML = BILL_SEASONS.map(season => {
+        const label = season === 'all' ? 'All' : `${season.charAt(0).toUpperCase()}${season.slice(1)}`;
+        const activeClass = season === activeBillSeasonFilter ? 'active' : '';
+        return `<button type="button" class="bill-season-chip ${activeClass}" data-season="${season}" onclick="setBillSeasonFilter('${season}')">${label}</button>`;
+    }).join('');
+}
+
+function applyBillSeasonFilter() {
+    const filtered = activeBillSeasonFilter === 'all'
+        ? allBillsData
+        : allBillsData.filter(b => normalizeBillRecord(b).season === activeBillSeasonFilter);
+    renderSummaryStats(filtered);
+    renderBillsList(filtered);
+    renderBillSeasonFilters();
+}
+
+function setBillSeasonFilter(season) {
+    activeBillSeasonFilter = BILL_SEASONS.includes(season) ? season : 'all';
+    applyBillSeasonFilter();
+}
+
+async function fetchBillDetailData(parsedBill) {
+    if (!supabaseClient || !parsedBill || !parsedBill.raw) return null;
+
+    const raw = parsedBill.raw;
+    const idValue = getFirstValue(raw, ['id', 'bill_id', 'statement_id', 'record_id']);
+    const startValue = getFirstValue(raw, ['service_start', 'period_start', 'start_date', 'bill_start']);
+    const endValue = getFirstValue(raw, ['service_end', 'period_end', 'end_date', 'bill_end']);
+
+    const idColumns = ['bill_id', 'statement_id', 'id', 'record_id'];
+    const startColumns = ['service_start', 'period_start', 'start_date', 'bill_start'];
+    const endColumns = ['service_end', 'period_end', 'end_date', 'bill_end'];
+
+    for (const table of BILL_DETAIL_TABLE_CANDIDATES) {
+        if (idValue !== null) {
+            for (const idColumn of idColumns) {
+                const row = await querySingleRow(table, [[idColumn, idValue]]);
+                if (row) return row;
+            }
+        }
+
+        if (startValue !== null) {
+            for (const startColumn of startColumns) {
+                const row = await querySingleRow(table, [[startColumn, startValue]]);
+                if (row) return row;
+
+                if (endValue !== null) {
+                    for (const endColumn of endColumns) {
+                        const withRange = await querySingleRow(table, [
+                            [startColumn, startValue],
+                            [endColumn, endValue]
+                        ]);
+                        if (withRange) return withRange;
+                    }
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+async function querySingleRow(table, filters) {
+    try {
+        let query = supabaseClient.from(table).select('*').limit(1);
+        for (const [column, value] of filters) {
+            query = query.eq(column, value);
+        }
+        const { data, error } = await query;
+        if (error || !data || data.length === 0) return null;
+        return data[0];
+    } catch {
+        return null;
     }
 }
 
@@ -350,26 +574,42 @@ function renderBillsList(bills) {
     document.getElementById('bill-count').innerHTML = `${bills.length} bills`;
 
     bills.forEach(bill => {
+        const parsed = normalizeBillRecord(bill);
         const el = document.createElement('div');
         el.className = 'bill-card glass border border-zinc-800 rounded-2xl p-4 cursor-pointer';
-        el.onclick = () => showBillModal(bill);
+        el.onclick = () => showBillModal(parsed);
 
-        const eff = parseFloat(bill.effective_rate) || 0;
-        const diff = parseFloat(bill.market_vs_paid_diff) || 0;
-        const diffColor = diff > 0 ? 'text-red-400' : 'text-emerald-400';
+        const startText = parsed.serviceStart
+            ? parsed.serviceStart.toLocaleDateString([], { month: 'short', year: 'numeric' })
+            : 'Unknown';
+        const endText = parsed.serviceEnd
+            ? parsed.serviceEnd.toLocaleDateString([], { month: 'short', day: 'numeric' })
+            : 'Unknown';
+        const diffColor = parsed.marketDiff > 0 ? 'text-red-400' : 'text-emerald-400';
+        const seasonBadge = parsed.season
+            ? `<button type="button" class="inline-flex px-3 py-1 rounded-full text-sm tracking-wide text-sky-300 bg-sky-500/10" onclick="event.stopPropagation(); setBillSeasonFilter('${parsed.season}')">${parsed.season}</button>`
+            : '';
+        const creditBadge = parsed.hasCredits
+            ? `<span class="inline-flex px-3 py-1 rounded-full text-sm tracking-wide text-emerald-300 bg-emerald-500/10">Credits</span>`
+            : '';
 
         el.innerHTML = `
             <div class="flex justify-between mb-3">
                 <div>
-                    <div class="font-semibold">${new Date(bill.service_start).toLocaleDateString([], {month:'short', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'short', day:'numeric'})}</div>
-                    <div class="text-xs text-zinc-400">${bill.days} days • ${bill.total_kwh} kWh</div>
+                    <div class="font-semibold">${startText} — ${endText}</div>
+                    <div class="text-xs text-zinc-400">${parsed.days} days • ${parsed.totalKwh} kWh</div>
                 </div>
-                <div class="text-right"><div class="font-semibold text-lg">${formatDollarAmount(bill.total_due)}</div></div>
+                <div class="text-right">
+                    <div class="font-semibold text-3xl">${formatDollarAmount(parsed.totalDue)}</div>
+                    <div class="text-xs text-zinc-500 mt-1">Total Due</div>
+                </div>
             </div>
             <div class="grid grid-cols-3 gap-2 text-sm">
-                <div><div class="text-[10px] text-zinc-400">Effective Rate</div><div class="font-semibold">${formatCents(eff)}</div></div>
-                <div><div class="text-[10px] text-zinc-400">vs Market</div><div class="font-semibold ${diffColor}">${diff > 0 ? '+' : ''}${diff.toFixed(2)}¢</div></div>
+                <div><div class="text-[10px] text-zinc-400">Effective Rate</div><div class="font-semibold">${formatCents(parsed.effectiveRate)}</div></div>
+                <div><div class="text-[10px] text-zinc-400">Market Avg</div><div class="font-semibold">${formatCents(parsed.marketAvg)}</div></div>
+                <div><div class="text-[10px] text-zinc-400">vs Market</div><div class="font-semibold ${diffColor}">${parsed.marketDiff > 0 ? '+' : ''}${parsed.marketDiff.toFixed(2)}¢</div></div>
             </div>
+            <div class="mt-4 flex gap-2">${seasonBadge}${creditBadge}</div>
         `;
         container.appendChild(el);
     });
@@ -381,18 +621,25 @@ function renderSummaryStats(bills) {
         document.getElementById('total-spent').textContent = '$0.00';
         document.getElementById('avg-effective-rate').textContent = '--';
         document.getElementById('avg-vs-market').textContent = '--';
+        document.getElementById('supply-spend').textContent = '$0.00';
+        document.getElementById('delivery-spend').textContent = '$0.00';
         return;
     }
 
     const totalBills = bills.length;
-    const totalSpent = bills.reduce((sum, b) => sum + (parseFloat(b.total_due) || 0), 0);
-    const avgRate = bills.reduce((sum, b) => sum + (parseFloat(b.effective_rate) || 0), 0) / totalBills;
-    const avgVsMarket = bills.reduce((sum, b) => sum + (parseFloat(b.market_vs_paid_diff) || 0), 0) / totalBills;
+    const normalized = bills.map(normalizeBillRecord);
+    const totalSpent = normalized.reduce((sum, b) => sum + b.totalDue, 0);
+    const avgRate = normalized.reduce((sum, b) => sum + b.effectiveRate, 0) / totalBills;
+    const avgVsMarket = normalized.reduce((sum, b) => sum + b.marketDiff, 0) / totalBills;
+    const totalSupplySpend = normalized.reduce((sum, b) => sum + b.supplyCost, 0);
+    const totalDeliverySpend = normalized.reduce((sum, b) => sum + b.deliveryCost, 0);
 
     animateSlotNumber(document.getElementById('total-bills'), totalBills);
     animateSlotNumber(document.getElementById('total-spent'), '$' + totalSpent.toFixed(2));
     animateSlotNumber(document.getElementById('avg-effective-rate'), avgRate.toFixed(2) + '¢');
     animateSlotNumber(document.getElementById('avg-vs-market'), `${avgVsMarket > 0 ? '+' : ''}${avgVsMarket.toFixed(2)}¢`);
+    animateSlotNumber(document.getElementById('supply-spend'), '$' + totalSupplySpend.toFixed(2));
+    animateSlotNumber(document.getElementById('delivery-spend'), '$' + totalDeliverySpend.toFixed(2));
 }
 
 // ==================== HELPERS ====================
@@ -404,21 +651,93 @@ function formatCents(rate) {
     return parseFloat(rate).toFixed(2) + '¢';
 }
 
+function formatCentsCompact(rate) {
+    return parseFloat(rate).toFixed(1) + '¢';
+}
+
 function showSkeleton() {}
 
-function showBillModal(bill) {
+function renderBillModalContent(parsed) {
+    const diffColor = parsed.marketDiff > 0 ? 'text-red-400' : 'text-emerald-400';
+    const seasonText = parsed.season ? String(parsed.season).toLowerCase() : 'n/a';
+    const supplyRateText = parsed.supplyRate > 0 ? ` (${formatCentsCompact(parsed.supplyRate)}/kWh)` : '';
+    const deliveryRateText = parsed.deliveryRate > 0 ? ` (${formatCentsCompact(parsed.deliveryRate)}/kWh)` : '';
+    const marketDiffText = `${parsed.marketDiff > 0 ? '+' : ''}${parsed.marketDiff.toFixed(2)}¢ vs market`;
+
+    return `
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <div class="text-zinc-400 text-sm">Total kWh</div>
+                <div class="text-3xl font-semibold">${Math.round(parsed.totalKwh)} kWh</div>
+            </div>
+            <div class="text-right">
+                <div class="text-zinc-400 text-sm">Total Due</div>
+                <div class="text-3xl font-semibold">${formatDollarAmount(parsed.totalDue)}</div>
+            </div>
+        </div>
+        <div class="border-t border-zinc-700/80 pt-4 space-y-3">
+            <div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">Supply (Energy)</div>
+                <div class="font-semibold">${formatDollarAmount(parsed.supplyCost)}${supplyRateText}</div>
+            </div>
+            <div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">Delivery (Wires)</div>
+                <div class="font-semibold">${formatDollarAmount(parsed.deliveryCost)}${deliveryRateText}</div>
+            </div>
+            <div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">Taxes & Fees</div>
+                <div class="font-semibold">${formatDollarAmount(parsed.taxesFees)}</div>
+            </div>
+        </div>
+        <div class="border-t border-zinc-700/80 pt-4 space-y-2">
+            <div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">Effective Rate</div>
+                <div class="text-4xl font-semibold">${formatCentsCompact(parsed.effectiveRate)}</div>
+            </div>
+            <div class="flex justify-between items-baseline">
+                <div class="text-zinc-400">vs Market Average</div>
+                <div class="text-3xl font-semibold ${diffColor}">${marketDiffText}</div>
+            </div>
+        </div>
+        <div class="flex gap-2 pt-1 items-center">
+            <span class="inline-flex px-3 py-1 rounded-full text-xs tracking-wide text-sky-300 bg-sky-500/10">${seasonText}</span>
+            ${parsed.hasCredits ? '<span class="inline-flex px-3 py-1 rounded-full text-xs tracking-wide text-emerald-300 bg-emerald-500/10">Credits</span>' : ''}
+        </div>
+        <button onclick="closeBillModal()" class="mt-2 w-full py-3 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-2xl text-lg">Close</button>
+    `;
+}
+
+async function showBillModal(bill) {
+    const parsed = bill && (bill.serviceStart !== undefined || bill.raw) ? bill : normalizeBillRecord(bill || {});
     const modal = document.getElementById('bill-modal');
+    const modalContent = document.getElementById('modal-content');
+    const startText = parsed.serviceStart
+        ? parsed.serviceStart.toLocaleDateString([], { month: 'long', year: 'numeric' })
+        : 'Unknown';
+    const endText = parsed.serviceEnd
+        ? parsed.serviceEnd.toLocaleDateString([], { month: 'long', day: 'numeric' })
+        : 'Unknown';
+
     document.getElementById('modal-period').innerHTML = 
-        `${new Date(bill.service_start).toLocaleDateString([], {month:'long', year:'numeric'})} — ${new Date(bill.service_end).toLocaleDateString([], {month:'long', day:'numeric'})}`;
+        `${startText} — ${endText}`;
+    modalContent.innerHTML = renderBillModalContent(parsed);
     modal.classList.remove('hidden');
     modal.classList.add('flex');
+
+    const detailed = await fetchBillDetailData(parsed);
+    if (detailed) {
+        const hydrated = normalizeBillRecord({ ...(parsed.raw || {}), ...detailed });
+        modalContent.innerHTML = renderBillModalContent(hydrated);
+    }
 }
 
 function closeBillModal() {
     const modal = document.getElementById('bill-modal');
+    if (!modal) return;
     modal.classList.remove('flex');
     modal.classList.add('hidden');
 }
 
 // ==================== INIT ====================
 document.addEventListener('DOMContentLoaded', initializeSupabase);
+window.addEventListener('pageshow', closeBillModal);
