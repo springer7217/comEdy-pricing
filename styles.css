@@ -37,32 +37,62 @@ body {
 .mt-4 {
     margin-top: 1rem;
 }
-/* ==================== TAB STYLES ==================== */
-.tab-button {
-    position: relative;
-    transition: all 0.2s ease;
-    color: #a1a1aa;
+/* ==================== BOTTOM TAB NAVIGATION ==================== */
+.app-shell {
+    padding-bottom: 6.5rem;
 }
 
-.tab-button:hover {
-    color: #e4e4e7;
-}
-
-.tab-button.active {
-    color: white;
-    background-color: #27272a;
-}
-
-.tab-button.active::after {
-    content: '';
-    position: absolute;
-    bottom: 0;
+.bottom-tab-shell {
+    position: fixed;
     left: 0;
     right: 0;
-    height: 3px;
-    background: linear-gradient(to right, #22c55e, #4ade80);
-    border-radius: 3px 3px 0 0;
-    transition: all 0.3s ease;
+    bottom: 0;
+    z-index: 60;
+    display: flex;
+    justify-content: center;
+    padding: 0 0.75rem calc(env(safe-area-inset-bottom, 0px) + 0.65rem);
+    pointer-events: none;
+}
+
+.bottom-tab-bar {
+    width: 100%;
+    max-width: 28rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+    padding: 0.38rem;
+    border-radius: 1.2rem;
+    border: 1px solid #30303a;
+    background: rgba(24, 24, 27, 0.94);
+    backdrop-filter: blur(22px);
+    box-shadow: 0 16px 34px rgba(0, 0, 0, 0.4);
+    pointer-events: auto;
+}
+
+.tab-button.bottom-tab-button {
+    border: 0;
+    border-radius: 0.95rem;
+    padding: 0.72rem 0.8rem;
+    background: transparent;
+    color: #a1a1aa;
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    transition: transform 0.16s ease, background-color 0.16s ease, color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.tab-button.bottom-tab-button:hover {
+    color: #f4f4f5;
+}
+
+.tab-button.bottom-tab-button:active {
+    transform: scale(0.97);
+}
+
+.tab-button.bottom-tab-button.active {
+    color: #fafafa;
+    background: linear-gradient(170deg, rgba(57, 57, 64, 0.95), rgba(39, 39, 46, 0.95));
+    box-shadow: inset 0 0 0 1px #3f3f46, 0 8px 18px rgba(0, 0, 0, 0.28);
 }
 
 /* ==================== FILTER BUTTONS ==================== */
