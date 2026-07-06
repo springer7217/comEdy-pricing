@@ -104,11 +104,13 @@
 
             <!-- Recent Readings -->
             <div class="px-6 mt-6">
-                <div class="flex justify-between items-baseline px-1 mb-3">
+                <div class="px-1 mb-3">
                     <span class="text-sm font-semibold">Recent Readings</span>
-                    <span id="reading-count" class="text-xs text-zinc-500"></span>
                 </div>
                 <div id="recent-list" class="space-y-[6px]"></div>
+                <div class="recent-readings-meta">
+                    <span id="reading-count" class="reading-count-meta"></span>
+                </div>
 
                 <button id="load-more-btn" onclick="loadMore()"
                         class="mt-4 w-full py-3 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-2xl text-sm font-medium hidden">

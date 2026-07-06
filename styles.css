@@ -357,6 +357,21 @@ button:focus-visible {
     gap: 6px;
 }
 
+.recent-readings-meta {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.4rem;
+    padding-right: 0.18rem;
+}
+
+.reading-count-meta {
+    font-size: 0.68rem;
+    line-height: 1;
+    letter-spacing: 0.04em;
+    color: #71717a;
+    text-transform: uppercase;
+}
+
 #recent-list > div {
     background-color: #18181b;
     border: 1px solid #27272a;
