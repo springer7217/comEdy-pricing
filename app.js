@@ -397,7 +397,7 @@ function normalizeBillRecord(bill) {
     const marketAvg = getNumeric(bill, ['market_avg_rate', 'market_rate', 'market_avg']);
     const marketDiff = getNumeric(bill, ['market_vs_paid_diff', 'vs_market', 'market_diff'], 0);
     const seasonRaw = getFirstValue(bill, ['season']) || '';
-    const season = normalizeSeason(seasonRaw);
+    const season = normalizeSeason(seasonRaw) || deriveSeasonFromDate(serviceStart);
     const credits = getNumeric(bill, ['credits', 'credits_applied', 'credit_amount'], 0);
     const supplyCost = getNumeric(bill, [
         'supply_cost', 'supply_total', 'energy_cost', 'supply_charge', 'supply_amount', 'energy_amount'
@@ -444,6 +444,15 @@ function normalizeSeason(value) {
     return '';
 }
 
+function deriveSeasonFromDate(dateValue) {
+    if (!dateValue || Number.isNaN(dateValue.getTime())) return '';
+    const month = dateValue.getMonth(); // 0-11
+    if (month >= 2 && month <= 4) return 'spring';
+    if (month >= 5 && month <= 7) return 'summer';
+    if (month >= 8 && month <= 10) return 'fall';
+    return 'winter';
+}
+
 function renderBillSeasonFilters() {
     const container = document.getElementById('bill-season-filters');
     if (!container) return;
@@ -458,6 +467,7 @@ function applyBillSeasonFilter() {
     const filtered = activeBillSeasonFilter === 'all'
         ? allBillsData
         : allBillsData.filter(b => normalizeBillRecord(b).season === activeBillSeasonFilter);
+    renderSummaryStats(filtered);
     renderBillsList(filtered);
     renderBillSeasonFilters();
 }
