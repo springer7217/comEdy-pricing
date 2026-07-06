@@ -495,15 +495,41 @@ function formatCents(rate) {
 function showSkeleton() {}
 
 function showBillModal(bill) {
+    const parsed = bill && (bill.serviceStart !== undefined || bill.raw) ? bill : normalizeBillRecord(bill || {});
     const modal = document.getElementById('bill-modal');
-    const startText = bill.serviceStart
-        ? bill.serviceStart.toLocaleDateString([], { month: 'long', year: 'numeric' })
+    const modalContent = document.getElementById('modal-content');
+    const startText = parsed.serviceStart
+        ? parsed.serviceStart.toLocaleDateString([], { month: 'long', year: 'numeric' })
         : 'Unknown';
-    const endText = bill.serviceEnd
-        ? bill.serviceEnd.toLocaleDateString([], { month: 'long', day: 'numeric' })
+    const endText = parsed.serviceEnd
+        ? parsed.serviceEnd.toLocaleDateString([], { month: 'long', day: 'numeric' })
         : 'Unknown';
+    const diffColor = parsed.marketDiff > 0 ? 'text-red-400' : 'text-emerald-400';
+    const seasonText = parsed.season ? String(parsed.season).toLowerCase() : 'n/a';
+
     document.getElementById('modal-period').innerHTML = 
         `${startText} — ${endText}`;
+    modalContent.innerHTML = `
+        <div class="flex justify-between items-end">
+            <div>
+                <div class="text-[10px] uppercase tracking-wider text-zinc-400">Total Due</div>
+                <div class="text-3xl font-semibold">${formatDollarAmount(parsed.totalDue)}</div>
+            </div>
+            <div class="text-right text-zinc-400 text-xs">
+                <div>${parsed.days} days</div>
+                <div>${parsed.totalKwh} kWh</div>
+            </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3 text-sm">
+            <div><div class="text-[10px] text-zinc-400">Effective Rate</div><div class="font-semibold">${formatCents(parsed.effectiveRate)}</div></div>
+            <div><div class="text-[10px] text-zinc-400">Market Avg</div><div class="font-semibold">${formatCents(parsed.marketAvg)}</div></div>
+            <div><div class="text-[10px] text-zinc-400">vs Market</div><div class="font-semibold ${diffColor}">${parsed.marketDiff > 0 ? '+' : ''}${parsed.marketDiff.toFixed(2)}¢</div></div>
+        </div>
+        <div class="flex gap-2 pt-1">
+            <span class="inline-flex px-3 py-1 rounded-full text-xs tracking-wide text-sky-300 bg-sky-500/10">${seasonText}</span>
+            ${parsed.hasCredits ? '<span class="inline-flex px-3 py-1 rounded-full text-xs tracking-wide text-emerald-300 bg-emerald-500/10">Credits</span>' : ''}
+        </div>
+    `;
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
