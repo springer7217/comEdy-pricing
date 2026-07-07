@@ -502,6 +502,16 @@ body.modal-open {
     min-height: 220px;
 }
 
+#usage-vs-spend-chart {
+    min-height: 220px;
+}
+
+.usage-insight-card {
+    color: #d1fae5;
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.22);
+}
+
 /* ==================== GENERAL UTILITIES ==================== */
 button:focus-visible {
     outline: 2px solid #22c55e;

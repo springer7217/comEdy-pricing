@@ -11,12 +11,14 @@ let currentFilterHours = 24;
 let priceChart = null;
 let billBreakdownChart = null;
 let billRecordBreakdownChart = null;
+let usageVsSpendChart = null;
 let currentRecentReadings = [];
-const BILL_TABLE_CANDIDATES = ['bills', 'comed_bills', 'bill_history'];
+const BILL_TABLE_CANDIDATES = ['bill_with_price_insights', 'bills', 'comed_bills', 'bill_history'];
 const BILL_DETAIL_TABLE_CANDIDATES = ['bill_details', 'bill_line_items', 'bills_details', 'bill_breakdown'];
 const BILL_SEASONS = ['all', 'spring', 'summer', 'fall', 'winter'];
 let activeBillSeasonFilter = 'all';
 let currentFilteredPriceData = [];
+let currentFilteredBills = [];
 let currentLiveStatMeta = null;
 let currentSummaryMeta = null;
 let activeLiveDetailKey = null;
@@ -499,11 +501,13 @@ function normalizeBillRecord(bill) {
     const marketAvg = getNumeric(bill, ['market_avg_rate', 'market_rate', 'market_avg']);
     const marketDiffRaw = getOptionalNumeric(bill, ['market_vs_paid_diff', 'vs_market', 'market_diff']);
     const marketDiff = marketDiffRaw ?? (effectiveRate - marketAvg);
-    const seasonRaw = getFirstValue(bill, ['season']) || '';
+    const seasonRaw = getFirstValue(bill, ['season', 'billing_season']) || '';
     const season = normalizeSeason(seasonRaw) || deriveSeasonFromDate(serviceStart);
     const creditsRaw = getOptionalNumeric(bill, [
         'credits', 'credits_applied', 'credit_amount', 'credit_total', 'total_credits', 'bill_credit', 'adjustments'
     ]);
+    const hasCreditsFlagRaw = getFirstValue(bill, ['has_credits']);
+    const hasCreditsFlag = hasCreditsFlagRaw === true || String(hasCreditsFlagRaw || '').toLowerCase() === 'true';
     const supplyCost = getNumeric(bill, [
         'supply_cost', 'supply_total', 'energy_cost', 'supply_charge', 'supply_amount', 'energy_amount'
     ]);
@@ -533,13 +537,14 @@ function normalizeBillRecord(bill) {
         marketAvg,
         marketDiff,
         season,
-        hasCredits: Math.abs(credits) > 0.004,
+        hasCredits: hasCreditsFlag || Math.abs(credits) > 0.004,
         credits,
         supplyCost,
         supplyRate,
         deliveryCost,
         deliveryRate,
-        taxesFees
+        taxesFees,
+        avgPriceDuringPeriod: getNumeric(bill, ['avg_price_during_period', 'avg_market_price', 'average_price_during_period'], 0)
     };
 }
 
@@ -598,8 +603,10 @@ function applyBillSeasonFilter() {
     const filtered = activeBillSeasonFilter === 'all'
         ? allBillsData
         : allBillsData.filter(b => normalizeBillRecord(b).season === activeBillSeasonFilter);
+    currentFilteredBills = filtered;
     hideBillsSummaryDetail();
     renderSummaryStats(filtered);
+    renderUsageVsSpendChart(filtered);
     renderBillsList(filtered);
     renderBillSeasonFilters();
 }
@@ -759,6 +766,223 @@ function renderSummaryStats(bills) {
         delivery: totalDeliverySpend,
         taxes: totalTaxesFees,
         credits: totalCredits
+    });
+}
+
+function formatPercentChange(current, previous) {
+    if (!Number.isFinite(current) || !Number.isFinite(previous) || previous === 0) return null;
+    return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+function buildMonthlyUsageSpendSeries(bills) {
+    const monthMap = new Map();
+    bills.forEach((bill) => {
+        const parsed = normalizeBillRecord(bill);
+        const monthDate = parsed.startDate || parsed.endDate;
+        if (!monthDate || Number.isNaN(monthDate.getTime())) return;
+
+        const key = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+        const entry = monthMap.get(key) || {
+            key,
+            label: monthDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+            timestamp: new Date(monthDate.getFullYear(), monthDate.getMonth(), 1).getTime(),
+            totalKwh: 0,
+            totalDue: 0,
+            weightedRateNumerator: 0,
+            hasCredits: false
+        };
+
+        entry.totalKwh += parsed.totalKwh;
+        entry.totalDue += parsed.totalDue;
+        entry.weightedRateNumerator += parsed.effectiveRate * parsed.totalKwh;
+        entry.hasCredits = entry.hasCredits || parsed.hasCredits;
+        monthMap.set(key, entry);
+    });
+
+    return Array.from(monthMap.values())
+        .sort((a, b) => a.timestamp - b.timestamp)
+        .map((entry) => ({
+            ...entry,
+            effectiveRate: entry.totalKwh > 0 ? entry.weightedRateNumerator / entry.totalKwh : 0
+        }));
+}
+
+function buildUsageInsight(series) {
+    const insightEl = document.getElementById('usage-vs-spend-insight');
+    if (!insightEl) return;
+
+    if (!series || series.length === 0) {
+        insightEl.textContent = 'No bill data available for this filter yet.';
+        return;
+    }
+
+    const latest = series[series.length - 1];
+    const previous = series.length > 1 ? series[series.length - 2] : null;
+
+    if (!previous) {
+        insightEl.textContent = `${latest.label}: ${Math.round(latest.totalKwh).toLocaleString()} kWh and $${latest.totalDue.toFixed(2)} total due (${latest.effectiveRate.toFixed(2)}¢/kWh).`;
+        return;
+    }
+
+    const usagePct = formatPercentChange(latest.totalKwh, previous.totalKwh);
+    const spendPct = formatPercentChange(latest.totalDue, previous.totalDue);
+    const usageWord = usagePct === null ? 'shifted' : usagePct >= 0 ? 'increased' : 'decreased';
+    const spendWord = spendPct === null ? 'shifted' : spendPct >= 0 ? 'increased' : 'decreased';
+    const usagePart = usagePct === null ? '' : `usage ${usageWord} ${Math.abs(usagePct).toFixed(0)}%`;
+    const spendPart = spendPct === null ? '' : `spend ${spendWord} ${Math.abs(spendPct).toFixed(0)}%`;
+    const connector = usagePart && spendPart ? ' while ' : '';
+    const creditNote = latest.hasCredits ? ' Credits were applied.' : '';
+
+    insightEl.textContent = `In ${latest.label}, ${usagePart}${connector}${spendPart}. Effective rate was ${latest.effectiveRate.toFixed(2)}¢/kWh.${creditNote}`;
+}
+
+function renderUsageVsSpendChart(bills) {
+    const canvas = document.getElementById('usage-vs-spend-chart');
+    if (!canvas || typeof Chart === 'undefined') return;
+
+    if (!bills || bills.length === 0) {
+        if (usageVsSpendChart) {
+            usageVsSpendChart.destroy();
+            usageVsSpendChart = null;
+        }
+        buildUsageInsight([]);
+        return;
+    }
+
+    const monthlySeries = buildMonthlyUsageSpendSeries(bills);
+    buildUsageInsight(monthlySeries);
+
+    if (!monthlySeries.length) {
+        if (usageVsSpendChart) {
+            usageVsSpendChart.destroy();
+            usageVsSpendChart = null;
+        }
+        return;
+    }
+
+    const labels = monthlySeries.map((row) => row.label);
+    const kwhData = monthlySeries.map((row) => Number(row.totalKwh.toFixed(2)));
+    const spendData = monthlySeries.map((row) => Number(row.totalDue.toFixed(2)));
+    const rateData = monthlySeries.map((row) => Number(row.effectiveRate.toFixed(2)));
+    const latestIndex = monthlySeries.length - 1;
+
+    if (usageVsSpendChart) usageVsSpendChart.destroy();
+
+    usageVsSpendChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    type: 'bar',
+                    label: 'Usage (kWh)',
+                    data: kwhData,
+                    yAxisID: 'yKwh',
+                    borderRadius: 8,
+                    maxBarThickness: 24,
+                    backgroundColor: kwhData.map((_, idx) =>
+                        idx === latestIndex ? 'rgba(16, 185, 129, 0.55)' : 'rgba(45, 212, 191, 0.22)'
+                    ),
+                    borderColor: kwhData.map((_, idx) =>
+                        idx === latestIndex ? 'rgba(16, 185, 129, 0.95)' : 'rgba(45, 212, 191, 0.5)'
+                    ),
+                    borderWidth: 1
+                },
+                {
+                    type: 'line',
+                    label: 'Total Due ($)',
+                    data: spendData,
+                    yAxisID: 'ySpend',
+                    borderColor: 'rgba(96, 165, 250, 0.95)',
+                    backgroundColor: 'rgba(96, 165, 250, 0.15)',
+                    pointBackgroundColor: spendData.map((_, idx) =>
+                        idx === latestIndex ? 'rgba(37, 99, 235, 1)' : 'rgba(147, 197, 253, 0.9)'
+                    ),
+                    pointRadius: spendData.map((_, idx) => (idx === latestIndex ? 4 : 2.5)),
+                    pointHoverRadius: 5,
+                    borderWidth: 2.25,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#d4d4d8',
+                        boxWidth: 10,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(9, 9, 11, 0.95)',
+                    borderColor: 'rgba(63, 63, 70, 0.9)',
+                    borderWidth: 1,
+                    titleColor: '#fafafa',
+                    bodyColor: '#e4e4e7',
+                    callbacks: {
+                        afterBody: (tooltipItems) => {
+                            const index = tooltipItems?.[0]?.dataIndex ?? 0;
+                            const row = monthlySeries[index];
+                            if (!row) return [];
+                            const notes = [`Effective Rate: ${rateData[index].toFixed(2)}¢/kWh`];
+                            if (row.hasCredits) notes.push('Credits applied');
+                            return notes;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: {
+                        color: 'rgba(63, 63, 70, 0.2)'
+                    },
+                    ticks: {
+                        color: '#a1a1aa'
+                    }
+                },
+                yKwh: {
+                    type: 'linear',
+                    position: 'left',
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(63, 63, 70, 0.24)'
+                    },
+                    ticks: {
+                        color: '#99f6e4',
+                        callback: (value) => `${Math.round(value).toLocaleString()}`
+                    },
+                    title: {
+                        display: true,
+                        text: 'kWh',
+                        color: '#99f6e4'
+                    }
+                },
+                ySpend: {
+                    type: 'linear',
+                    position: 'right',
+                    beginAtZero: true,
+                    grid: {
+                        drawOnChartArea: false
+                    },
+                    ticks: {
+                        color: '#bfdbfe',
+                        callback: (value) => `$${Number(value).toFixed(0)}`
+                    },
+                    title: {
+                        display: true,
+                        text: 'Total Due ($)',
+                        color: '#bfdbfe'
+                    }
+                }
+            }
+        }
     });
 }
 
