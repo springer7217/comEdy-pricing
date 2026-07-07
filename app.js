@@ -589,6 +589,38 @@ function deriveSeasonFromDate(dateValue) {
     return 'winter';
 }
 
+function getSeasonForMonth(monthIndex) {
+    if (monthIndex >= 2 && monthIndex <= 4) return 'spring';
+    if (monthIndex >= 5 && monthIndex <= 7) return 'summer';
+    if (monthIndex >= 8 && monthIndex <= 10) return 'fall';
+    return 'winter';
+}
+
+function billOverlapsSeason(parsedBill, season) {
+    if (!parsedBill || !season || season === 'all') return true;
+
+    const start = parsedBill.serviceStart;
+    const end = parsedBill.serviceEnd || parsedBill.serviceStart;
+
+    if (!start || Number.isNaN(start.getTime())) {
+        return parsedBill.season === season;
+    }
+
+    const periodEnd = end && !Number.isNaN(end.getTime()) ? end : start;
+    let cursor = new Date(start.getFullYear(), start.getMonth(), 1);
+    const last = new Date(periodEnd.getFullYear(), periodEnd.getMonth(), 1);
+
+    // Guard against malformed ranges; also caps iteration for very long spans.
+    let steps = 0;
+    while (cursor <= last && steps < 48) {
+        if (getSeasonForMonth(cursor.getMonth()) === season) return true;
+        cursor.setMonth(cursor.getMonth() + 1);
+        steps += 1;
+    }
+
+    return parsedBill.season === season;
+}
+
 function renderBillSeasonFilters() {
     const container = document.getElementById('bill-season-filters');
     if (!container) return;
@@ -602,7 +634,7 @@ function renderBillSeasonFilters() {
 function applyBillSeasonFilter() {
     const filtered = activeBillSeasonFilter === 'all'
         ? allBillsData
-        : allBillsData.filter(b => normalizeBillRecord(b).season === activeBillSeasonFilter);
+        : allBillsData.filter((bill) => billOverlapsSeason(normalizeBillRecord(bill), activeBillSeasonFilter));
     currentFilteredBills = filtered;
     hideBillsSummaryDetail();
     renderSummaryStats(filtered);
