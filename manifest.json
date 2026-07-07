@@ -1,21 +1,37 @@
 {
-  "name": "ComEd Pricing",
-  "short_name": "ComEd",
-  "description": "Live electricity prices and 24h analytics for ComEd customers",
+  "id": "/",
+  "name": "ComEd Pricing - Live Rates & Weather Insights",
+  "short_name": "ComEd Pricing",
+  "description": "Live ComEd electricity prices, trend analytics, and weather-based price insights in a mobile-first PWA.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
+  "orientation": "portrait-primary",
+  "categories": [
+    "utilities",
+    "finance",
+    "productivity"
+  ],
   "background_color": "#18181b",
   "theme_color": "#18181b",
   "icons": [
     {
-      "src": "https://via.placeholder.com/192x192/18181b/22c55e?text=C",
+      "src": "assets/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
-      "src": "https://via.placeholder.com/512x512/18181b/22c55e?text=C",
+      "src": "assets/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "assets/icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }
