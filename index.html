@@ -90,6 +90,50 @@
                 </div>
             </div>
 
+            <!-- Weather Insights -->
+            <div class="px-6 mt-6">
+                <section class="glass border border-zinc-800 rounded-2xl p-4 weather-insights-shell">
+                    <div class="weather-insights-header">
+                        <div>
+                            <div class="weather-insights-title-row">
+                                <h2 class="text-sm font-semibold">Weather &amp; Price Insights</h2>
+                                <span class="weather-beta-badge">Beta</span>
+                            </div>
+                            <p class="weather-insights-subtitle">5-day estimate based on temperature patterns in your pricing history.</p>
+                        </div>
+                        <div class="weather-insights-actions">
+                            <button id="weather-insights-refresh-btn"
+                                    onclick="loadWeatherInsights(true)"
+                                    class="weather-action-btn hidden"
+                                    type="button">
+                                Refresh
+                            </button>
+                            <button id="weather-insights-load-btn"
+                                    onclick="loadWeatherInsights()"
+                                    class="weather-action-btn weather-action-btn-primary"
+                                    type="button">
+                                Load Insights
+                            </button>
+                            <button id="weather-insights-toggle-btn"
+                                    onclick="toggleWeatherInsights()"
+                                    class="weather-action-btn"
+                                    type="button">
+                                Collapse
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="weather-insights-body" class="weather-insights-body">
+                        <div id="weather-insights-status" class="weather-insights-status">
+                            Load insights to fetch weather and estimate the next 5 days.
+                        </div>
+                        <div id="weather-forecast-cards" class="weather-forecast-cards hidden"></div>
+                        <div id="weather-bin-stats" class="weather-bin-stats hidden"></div>
+                        <div id="weather-insight-callout" class="weather-insight-callout hidden"></div>
+                    </div>
+                </section>
+            </div>
+
             <!-- Recent Readings -->
             <div class="px-6 mt-6">
                 <div class="px-1 mb-3">
