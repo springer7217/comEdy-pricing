@@ -778,7 +778,7 @@ function buildMonthlyUsageSpendSeries(bills) {
     const monthMap = new Map();
     bills.forEach((bill) => {
         const parsed = normalizeBillRecord(bill);
-        const monthDate = parsed.startDate || parsed.endDate;
+        const monthDate = parsed.serviceStart || parsed.serviceEnd;
         if (!monthDate || Number.isNaN(monthDate.getTime())) return;
 
         const key = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
