@@ -110,6 +110,10 @@
 
         <!-- My Bills Tab -->
         <div id="bills-tab-content" class="hidden px-6">
+            <div class="mt-4">
+                <div class="text-[11px] text-zinc-500 mb-2 tracking-wide uppercase">Filter by season</div>
+                <div id="bill-season-filters" class="bill-season-filters"></div>
+            </div>
             <div class="grid grid-cols-2 gap-3 mt-6">
                 <button type="button" data-bills-summary-detail="total-bills" class="glass border border-zinc-800 rounded-2xl p-4 clickable-scorecard">
                     <div class="text-xs text-zinc-400">TOTAL BILLS</div>
@@ -155,7 +159,6 @@
                     <span class="text-sm font-semibold">Bill History</span>
                     <span id="bill-count" class="text-xs text-zinc-500"></span>
                 </div>
-                <div id="bill-season-filters" class="bill-season-filters"></div>
                 <div id="bills-list" class="space-y-3"></div>
             </div>
         </div>
