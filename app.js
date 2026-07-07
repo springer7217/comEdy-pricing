@@ -24,6 +24,18 @@ let currentSummaryMeta = null;
 let activeLiveDetailKey = null;
 let activeBillsDetailKey = null;
 let scorecardListenersBound = false;
+let weatherInsightsLoaded = false;
+let weatherInsightsLoading = false;
+let weatherInsightsExpanded = true;
+let weatherInsightsCache = null;
+const WEATHER_LATITUDE = 41.6;
+const WEATHER_LONGITUDE = -88.2;
+const WEATHER_TIMEZONE = 'America/Chicago';
+const WEATHER_TEMP_BINS = [
+    { key: 'cool', label: 'Cool days (<75°F)', min: -Infinity, max: 75 },
+    { key: 'mild', label: 'Mild days (75–85°F)', min: 75, max: 85.000001 },
+    { key: 'hot', label: 'Hot days (>85°F)', min: 85.000001, max: Infinity }
+];
 
 // ==================== SIMPLE SLOT MACHINE ====================
 function animateSlotNumber(element, targetValue, duration = 800) {
@@ -173,6 +185,7 @@ async function loadData(showLoading = true) {
         allPriceData = data || [];
         displayedCount = 5;
         filterData(currentFilterHours);
+        markWeatherInsightsNeedsRefresh();
     } catch (err) {
         console.error('Price data error:', err);
     }
@@ -268,6 +281,305 @@ function formatLivePrice(centsValue) {
         return `$${(cents / 100).toFixed(2)}`;
     }
     return `${cents.toFixed(1)}¢`;
+}
+
+function toggleWeatherInsights() {
+    const body = document.getElementById('weather-insights-body');
+    const toggleBtn = document.getElementById('weather-insights-toggle-btn');
+    if (!body || !toggleBtn) return;
+    weatherInsightsExpanded = !weatherInsightsExpanded;
+    body.classList.toggle('hidden', !weatherInsightsExpanded);
+    toggleBtn.textContent = weatherInsightsExpanded ? 'Collapse' : 'Expand';
+}
+
+function setWeatherInsightsStatus(message, variant = '') {
+    const statusEl = document.getElementById('weather-insights-status');
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.classList.remove('error', 'loading');
+    if (variant === 'error') {
+        statusEl.classList.add('error');
+    } else if (variant === 'loading') {
+        statusEl.classList.add('loading');
+    }
+}
+
+function updateWeatherInsightsActions() {
+    const loadBtn = document.getElementById('weather-insights-load-btn');
+    const refreshBtn = document.getElementById('weather-insights-refresh-btn');
+    if (!loadBtn || !refreshBtn) return;
+
+    loadBtn.disabled = weatherInsightsLoading;
+    refreshBtn.disabled = weatherInsightsLoading;
+
+    if (weatherInsightsLoading) {
+        loadBtn.textContent = weatherInsightsLoaded ? 'Refreshing...' : 'Loading...';
+    } else {
+        loadBtn.textContent = weatherInsightsLoaded ? 'Loaded' : 'Load Insights';
+    }
+
+    loadBtn.classList.toggle('hidden', weatherInsightsLoaded);
+    refreshBtn.classList.toggle('hidden', !weatherInsightsLoaded);
+}
+
+function markWeatherInsightsNeedsRefresh() {
+    if (!weatherInsightsLoaded || weatherInsightsLoading) return;
+    setWeatherInsightsStatus('Pricing data updated. Tap Refresh to recalculate weather insights.');
+}
+
+function getChicagoDateKey(rawDate) {
+    const date = new Date(rawDate);
+    if (Number.isNaN(date.getTime())) return '';
+    const year = new Intl.DateTimeFormat('en-US', { year: 'numeric', timeZone: WEATHER_TIMEZONE }).format(date);
+    const month = new Intl.DateTimeFormat('en-US', { month: '2-digit', timeZone: WEATHER_TIMEZONE }).format(date);
+    const day = new Intl.DateTimeFormat('en-US', { day: '2-digit', timeZone: WEATHER_TIMEZONE }).format(date);
+    return `${year}-${month}-${day}`;
+}
+
+function getDateKeyDaysAgo(days) {
+    const date = new Date();
+    date.setHours(12, 0, 0, 0);
+    date.setDate(date.getDate() - days);
+    return date.toISOString().slice(0, 10);
+}
+
+function getWeatherEmoji(code) {
+    if (code === 0) return '☀️';
+    if ([1, 2].includes(code)) return '🌤️';
+    if (code === 3) return '☁️';
+    if ([45, 48].includes(code)) return '🌫️';
+    if ((code >= 51 && code <= 67) || (code >= 80 && code <= 82)) return '🌧️';
+    if (code >= 71 && code <= 77) return '❄️';
+    if (code >= 95) return '⛈️';
+    return '🌡️';
+}
+
+function getTempBinKey(tempF) {
+    const temp = Number(tempF);
+    if (!Number.isFinite(temp)) return null;
+    const match = WEATHER_TEMP_BINS.find((bin) => temp >= bin.min && temp < bin.max);
+    return match ? match.key : null;
+}
+
+function computeDailyAveragePrices() {
+    const byDay = new Map();
+    (allPriceData || []).forEach((row) => {
+        const key = getChicagoDateKey(row.recorded_at);
+        const price = Number(row.price);
+        if (!key || !Number.isFinite(price)) return;
+        if (!byDay.has(key)) byDay.set(key, { sum: 0, count: 0 });
+        const day = byDay.get(key);
+        day.sum += price;
+        day.count += 1;
+    });
+
+    const dailyAverages = {};
+    byDay.forEach((value, key) => {
+        dailyAverages[key] = value.count ? (value.sum / value.count) : null;
+    });
+    return dailyAverages;
+}
+
+function buildWeatherInsightsModel(forecastPayload, historicalPayload, dailyPriceByDate) {
+    const bins = WEATHER_TEMP_BINS.map((bin) => ({
+        key: bin.key,
+        label: bin.label,
+        sum: 0,
+        count: 0,
+        avgPrice: null
+    }));
+    const binLookup = Object.fromEntries(bins.map((bin) => [bin.key, bin]));
+
+    const historicalDays = historicalPayload?.daily?.time || [];
+    const historicalMax = historicalPayload?.daily?.temperature_2m_max || [];
+    const joinedDays = [];
+
+    for (let i = 0; i < historicalDays.length; i += 1) {
+        const date = historicalDays[i];
+        const tempMax = Number(historicalMax[i]);
+        const avgPrice = Number(dailyPriceByDate[date]);
+        if (!date || !Number.isFinite(tempMax) || !Number.isFinite(avgPrice)) continue;
+
+        joinedDays.push({ date, tempMax, avgPrice });
+        const key = getTempBinKey(tempMax);
+        if (!key) continue;
+        const bucket = binLookup[key];
+        bucket.sum += avgPrice;
+        bucket.count += 1;
+    }
+
+    bins.forEach((bin) => {
+        bin.avgPrice = bin.count ? (bin.sum / bin.count) : null;
+    });
+
+    const overallAvg = joinedDays.length
+        ? joinedDays.reduce((sum, day) => sum + day.avgPrice, 0) / joinedDays.length
+        : null;
+
+    const forecastTime = forecastPayload?.daily?.time || [];
+    const forecastMax = forecastPayload?.daily?.temperature_2m_max || [];
+    const forecastMin = forecastPayload?.daily?.temperature_2m_min || [];
+    const forecastCode = forecastPayload?.daily?.weathercode || [];
+    const forecastPrecip = forecastPayload?.daily?.precipitation_probability_max || [];
+    const forecastDays = [];
+    const daysToRender = Math.min(5, forecastTime.length);
+
+    for (let i = 0; i < daysToRender; i += 1) {
+        const date = forecastTime[i];
+        const high = Number(forecastMax[i]);
+        const low = Number(forecastMin[i]);
+        const weatherCode = Number(forecastCode[i]);
+        const precipChance = Number(forecastPrecip[i]);
+        if (!date || !Number.isFinite(high) || !Number.isFinite(low)) continue;
+
+        const dateObj = new Date(`${date}T12:00:00`);
+        const dayLabel = dateObj.toLocaleDateString([], { weekday: 'short' });
+        const dateLabel = dateObj.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        const binKey = getTempBinKey(high);
+        const selectedBin = binKey ? binLookup[binKey] : null;
+        const hasBinData = Boolean(selectedBin && selectedBin.count > 0 && Number.isFinite(selectedBin.avgPrice));
+        const projectedPrice = hasBinData ? selectedBin.avgPrice : overallAvg;
+        const sampleCount = hasBinData ? selectedBin.count : joinedDays.length;
+        const supportText = hasBinData
+            ? `Based on ${selectedBin.count} similar days`
+            : `Fallback to overall average (${joinedDays.length} days)`;
+
+        forecastDays.push({
+            dayLabel,
+            dateLabel,
+            high,
+            low,
+            weatherCode,
+            precipChance: Number.isFinite(precipChance) ? precipChance : null,
+            projectedPrice,
+            sampleCount,
+            supportText
+        });
+    }
+
+    let callout = 'Collecting more history will improve forecast confidence.';
+    const mildBin = binLookup.mild;
+    const hotBin = binLookup.hot;
+    if (mildBin?.count > 0 && hotBin?.count > 0 && Number.isFinite(mildBin.avgPrice) && mildBin.avgPrice !== 0) {
+        const deltaPct = ((hotBin.avgPrice - mildBin.avgPrice) / mildBin.avgPrice) * 100;
+        const direction = deltaPct >= 0 ? 'higher' : 'lower';
+        callout = `In your history, hot days over 85°F average ${Math.abs(deltaPct).toFixed(1)}% ${direction} than mild days.`;
+    } else if (joinedDays.length < 20) {
+        callout = `Only ${joinedDays.length} matched weather/price days found so far, so estimates are still early.`;
+    }
+
+    return {
+        bins,
+        forecastDays,
+        callout,
+        overallAvg,
+        matchedHistoryDays: joinedDays.length
+    };
+}
+
+function renderWeatherInsights(model) {
+    const cardsEl = document.getElementById('weather-forecast-cards');
+    const binsEl = document.getElementById('weather-bin-stats');
+    const calloutEl = document.getElementById('weather-insight-callout');
+    if (!cardsEl || !binsEl || !calloutEl) return;
+
+    cardsEl.innerHTML = model.forecastDays.map((day) => {
+        const precip = Number.isFinite(day.precipChance) ? `<div class="weather-forecast-support">Rain chance: ${Math.round(day.precipChance)}%</div>` : '';
+        const supportSuffix = day.sampleCount < 8 ? `${day.supportText} · Limited data` : day.supportText;
+        return `
+            <article class="weather-forecast-card">
+                <div class="weather-forecast-day">
+                    <span>${day.dayLabel}, ${day.dateLabel}</span>
+                    <span>${getWeatherEmoji(day.weatherCode)}</span>
+                </div>
+                <div class="weather-forecast-temp">H ${Math.round(day.high)}°F · L ${Math.round(day.low)}°F</div>
+                <div class="weather-forecast-price">${Number.isFinite(day.projectedPrice) ? formatLivePrice(day.projectedPrice) : 'N/A'}</div>
+                <div class="weather-forecast-support">${supportSuffix}</div>
+                ${precip}
+            </article>
+        `;
+    }).join('');
+    cardsEl.classList.remove('hidden');
+
+    binsEl.innerHTML = model.bins.map((bin) => {
+        const avgText = Number.isFinite(bin.avgPrice) ? formatLivePrice(bin.avgPrice) : 'N/A';
+        return `
+            <div class="weather-bin-row">
+                <div class="weather-bin-label">${bin.label}</div>
+                <div class="weather-bin-value">${avgText} avg</div>
+                <div class="weather-bin-count">n=${bin.count}</div>
+            </div>
+        `;
+    }).join('');
+    binsEl.classList.remove('hidden');
+
+    calloutEl.textContent = model.callout;
+    calloutEl.classList.remove('hidden');
+}
+
+async function loadWeatherInsights(forceRefresh = false) {
+    if (weatherInsightsLoading) return;
+    if (!allPriceData.length) {
+        setWeatherInsightsStatus('Price data is still loading. Try again in a moment.', 'error');
+        return;
+    }
+
+    if (weatherInsightsCache && !forceRefresh) {
+        weatherInsightsLoaded = true;
+        renderWeatherInsights(weatherInsightsCache);
+        updateWeatherInsightsActions();
+        return;
+    }
+
+    const dailyPriceByDate = computeDailyAveragePrices();
+    const dayKeys = Object.keys(dailyPriceByDate).sort();
+    if (dayKeys.length === 0) {
+        setWeatherInsightsStatus('No daily price history found yet.');
+        return;
+    }
+
+    weatherInsightsLoading = true;
+    updateWeatherInsightsActions();
+    setWeatherInsightsStatus('Fetching weather history and forecast...', 'loading');
+
+    try {
+        const startDate = dayKeys[0];
+        const maxHistoricalDate = getDateKeyDaysAgo(1);
+        const endDate = dayKeys[dayKeys.length - 1] > maxHistoricalDate ? maxHistoricalDate : dayKeys[dayKeys.length - 1];
+        const forecastUrl = `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LATITUDE}&longitude=${WEATHER_LONGITUDE}&daily=temperature_2m_max,temperature_2m_min,weathercode,precipitation_probability_max&timezone=${WEATHER_TIMEZONE}&temperature_unit=fahrenheit&forecast_days=7`;
+        const historyUrl = `https://archive-api.open-meteo.com/v1/era5?latitude=${WEATHER_LATITUDE}&longitude=${WEATHER_LONGITUDE}&start_date=${startDate}&end_date=${endDate}&daily=temperature_2m_max&timezone=${WEATHER_TIMEZONE}&temperature_unit=fahrenheit`;
+
+        const [forecastResp, historyResp] = await Promise.all([
+            fetch(forecastUrl),
+            fetch(historyUrl)
+        ]);
+
+        if (!forecastResp.ok) throw new Error(`Forecast request failed (${forecastResp.status})`);
+        if (!historyResp.ok) throw new Error(`Historical request failed (${historyResp.status})`);
+
+        const [forecastData, historyData] = await Promise.all([
+            forecastResp.json(),
+            historyResp.json()
+        ]);
+
+        const model = buildWeatherInsightsModel(forecastData, historyData, dailyPriceByDate);
+        if (!model.forecastDays.length || model.matchedHistoryDays === 0) {
+            throw new Error('Not enough overlapping weather and price history to generate insights.');
+        }
+
+        weatherInsightsCache = model;
+        weatherInsightsLoaded = true;
+        renderWeatherInsights(model);
+        setWeatherInsightsStatus(
+            `Updated ${new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}. Matched ${model.matchedHistoryDays} weather/price days.`
+        );
+    } catch (err) {
+        console.error('Weather insights error:', err);
+        setWeatherInsightsStatus('Weather insights are unavailable right now. Please try refreshing.', 'error');
+    } finally {
+        weatherInsightsLoading = false;
+        updateWeatherInsightsActions();
+    }
 }
 
 function renderRecentList(filteredData) {
@@ -1486,3 +1798,5 @@ window.addEventListener('pageshow', closeBillModal);
 
 window.showLiveStatDetail = showLiveStatDetail;
 window.showBillsSummaryDetail = showBillsSummaryDetail;
+window.loadWeatherInsights = loadWeatherInsights;
+window.toggleWeatherInsights = toggleWeatherInsights;
