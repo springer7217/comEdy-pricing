@@ -1,3 +1,11 @@
+# ComEdy Pricing
+
+> **August 2026 — 2.0 rewrite is on this `v2` branch.**  
+> Browse [`V2.md`](./V2.md) and the [`v2/`](./v2) folder.  
+> `main` is untouched. Netlify production still serves 1.0.
+
+---
+
 # comedy-pricing ⚡
 
 **Smart alerts for ComEd Hourly Pricing spikes and negative prices.**
