@@ -37,6 +37,21 @@ function rangeLabel(bill: BillRow) {
   return `${start} — ${end}`;
 }
 
+function dailyBurn(bill: BillRow): number {
+  return bill.days > 0 ? bill.total_kwh / bill.days : 0;
+}
+
+function verdict(bill: BillRow): string {
+  const diff = bill.market_vs_paid_diff;
+  const abs = Math.abs(diff).toFixed(2);
+  const dir = diff > 0.5 ? "more" : diff < -0.5 ? "less" : "about the same as";
+  const credit = bill.credits_applied ? " Credits were applied." : "";
+  if (Math.abs(diff) < 0.5) {
+    return `You paid about the same as the hourly market average this period.${credit}`;
+  }
+  return `You paid ${abs}¢ ${dir} the hourly market average this period.${credit}`;
+}
+
 export function BillsView({ bills }: { bills: BillRow[] }) {
   const years = useMemo(() => {
     const set = new Set(bills.map((b) => b.service_end.slice(0, 4)));
@@ -280,8 +295,9 @@ function ChartCard({ title, children }: { title: string; children: ReactNode }) 
 }
 
 function BillDetail({ bill, onClose }: { bill: BillRow; onClose: () => void }) {
-  const supplyRate = (bill.supply_amount / bill.total_kwh) * 100;
-  const deliveryRate = (bill.delivery_amount / bill.total_kwh) * 100;
+  const supplyRate = bill.total_kwh > 0 ? (bill.supply_amount / bill.total_kwh) * 100 : 0;
+  const deliveryRate = bill.total_kwh > 0 ? (bill.delivery_amount / bill.total_kwh) * 100 : 0;
+  const daily = dailyBurn(bill);
   return (
     <div>
       <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-border" />
@@ -289,7 +305,7 @@ function BillDetail({ bill, onClose }: { bill: BillRow; onClose: () => void }) {
         <div>
           <Drawer.Title className="text-lg font-medium">{rangeLabel(bill)}</Drawer.Title>
           <p className="mt-1 text-sm text-muted">
-            {bill.days} days · {bill.total_kwh.toLocaleString()} kWh
+            {bill.days} days · {bill.total_kwh.toLocaleString()} kWh · {daily.toFixed(1)} kWh/day
           </p>
         </div>
         <button type="button" onClick={onClose} className="pressable text-2xl leading-none text-muted">
@@ -300,6 +316,7 @@ function BillDetail({ bill, onClose }: { bill: BillRow; onClose: () => void }) {
         <Badge>{bill.season}</Badge>
         {bill.credits_applied ? <Badge>Credits applied</Badge> : null}
       </div>
+      <p className="mt-4 text-sm leading-relaxed text-fg">{verdict(bill)}</p>
       <dl className="mt-5 space-y-3 text-sm">
         <Row label="Total due" value={formatDollars(bill.total_due)} />
         <Row

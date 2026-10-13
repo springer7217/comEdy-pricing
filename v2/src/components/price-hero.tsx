@@ -3,6 +3,15 @@ import { TickNumber } from "@/components/tick-number";
 import { ZoneDot } from "@/components/zone-dot";
 import { Badge } from "@/components/ui/badge";
 
+function evAdvice(price: number | null): string {
+  if (price == null) return "Waiting on the current price.";
+  if (price <= 0) return "Negative — plug in. ComEd is paying you to charge.";
+  if (price <= 4) return "Charge now. Excellent rate for an overnight top-up.";
+  if (price <= 8) return "Charge now. Cheap window for the Tesla (or dryer).";
+  if (price <= 12) return "Okay to charge if you need it. Better rates are common overnight.";
+  return "Wait if you can. Shift charging until after 9 p.m. or overnight.";
+}
+
 export function PriceHero({
   price,
   recordedAt,
@@ -37,6 +46,7 @@ export function PriceHero({
         </div>
       </div>
       <p className="mt-5 max-w-md text-sm leading-relaxed text-muted">{meta.action}</p>
+      <p className="mt-2 max-w-md text-sm font-medium text-fg">{evAdvice(price)}</p>
     </section>
   );
 }
