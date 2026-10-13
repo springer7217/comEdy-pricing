@@ -2,9 +2,8 @@
 """
 ComEd Price Logger + Notifier
 
-- Sends price update to ntfy every 10 minutes
+- Sends simple price update to ntfy every 10 minutes
 - Logs price + timestamp into Supabase
-- Includes clear EV / household charge decision
 """
 
 import requests
@@ -15,29 +14,12 @@ from supabase import create_client, Client
 
 
 def get_emoji(price: float) -> str:
-    if price < 0:
-        return "💰"
-    elif price <= 4.0:
+    if price <= 8.0:
         return "🟢"
-    elif price <= 8.0:
-        return "🟢"
-    elif price <= 12.0:
+    elif price <= 10.0:
         return "🟡"
     else:
         return "🔴"
-
-
-def get_guidance(price: float) -> str:
-    if price <= 0:
-        return "Negative — plug in. ComEd is paying you to charge."
-    elif price <= 4.0:
-        return "Charge now. Excellent rate for an overnight top-up."
-    elif price <= 8.0:
-        return "Charge now. Cheap window for the Tesla (or dryer)."
-    elif price <= 12.0:
-        return "Okay to charge if you need it. Better rates are common overnight."
-    else:
-        return "Wait if you can. Shift charging until after 9 p.m. or overnight."
 
 
 def main():
@@ -71,18 +53,25 @@ def main():
         time_str = dt_local.strftime("%I:%M %p")
 
         emoji = get_emoji(price)
-        guidance = get_guidance(price)
-        message = f"{emoji} ComEd: {price:.1f}¢/kWh as of {time_str}\n{guidance}"
+        if price <= 0:
+            decision = "Negative — plug in. ComEd is paying you to charge."
+        elif price <= 4:
+            decision = "Charge now. Excellent rate."
+        elif price <= 8:
+            decision = "Charge now. Cheap window."
+        elif price <= 12:
+            decision = "Okay to charge if you need it."
+        else:
+            decision = "Wait if you can. Shift until overnight."
+        message = f"{emoji} ComEd {price:.1f}¢/kWh at {time_str}. {decision}"
 
-        # 1. Send to ntfy
         if ntfy_topic:
             try:
-                requests.post(f"https://ntfy.sh/{ntfy_topic}", data=message.encode("utf-8"), timeout=10)
+                requests.post(f"https://ntfy.sh/{ntfy_topic}", data=message, timeout=10)
                 print(f"ntfy sent: {message}")
             except Exception as e:
                 print(f"ntfy error: {e}")
 
-        # 2. Insert into Supabase
         try:
             supabase.table("comed_prices").insert({
                 "price": price,
