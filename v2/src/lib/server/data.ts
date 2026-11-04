@@ -67,23 +67,22 @@ function syntheticPrice(at: Date, rand: () => number): number {
 
 async function ensureSeeded() {
   const sql = await getSql();
-  const [{ n: billCount }] = await sql<{ n: number }>`select count(*)::int as n from comed_bills`;
-  if (billCount === 0) {
-    for (const b of SEEDED_BILLS) {
-      await sql`
-        insert into comed_bills (
-          service_start, service_end, days, total_kwh, supply_amount, delivery_amount,
-          taxes_fees, total_due, supply_rate, effective_rate, market_avg,
-          market_vs_paid_diff, season, credits_applied
-        ) values (
-          ${b.service_start}::date, ${b.service_end}::date, ${b.days}, ${b.total_kwh},
-          ${b.supply_amount}, ${b.delivery_amount}, ${b.taxes_fees}, ${b.total_due},
-          ${b.supply_rate}, ${b.effective_rate}, ${b.market_avg}, ${b.market_vs_paid_diff},
-          ${b.season}, ${b.credits_applied}
-        )
-        on conflict (service_start) do nothing
-      `;
-    }
+
+  // Always ensure every seeded bill exists (idempotent via on conflict do nothing)
+  for (const b of SEEDED_BILLS) {
+    await sql`
+      insert into comed_bills (
+        service_start, service_end, days, total_kwh, supply_amount, delivery_amount,
+        taxes_fees, total_due, supply_rate, effective_rate, market_avg,
+        market_vs_paid_diff, season, credits_applied
+      ) values (
+        ${b.service_start}::date, ${b.service_end}::date, ${b.days}, ${b.total_kwh},
+        ${b.supply_amount}, ${b.delivery_amount}, ${b.taxes_fees}, ${b.total_due},
+        ${b.supply_rate}, ${b.effective_rate}, ${b.market_avg}, ${b.market_vs_paid_diff},
+        ${b.season}, ${b.credits_applied}
+      )
+      on conflict (service_start) do nothing
+    `;
   }
 
   const [{ n: priceCount }] = await sql<{ n: number }>`select count(*)::int as n from comed_prices`;
