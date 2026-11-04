@@ -62,8 +62,7 @@ export const SEEDED_BILLS: SeedBill[] = [
   bill({ start: "2026-02-27", end: "2026-03-30", days: 31, kwh: 679, supply: 64.56, delivery: 62.22, taxes: -11.31, supplyRate: 0.07841, market: 18.7, season: "Spring" }),
   bill({ start: "2026-03-30", end: "2026-04-29", days: 30, kwh: 679, supply: 73.46, delivery: 62.59, taxes: -4.92, supplyRate: 0.07841, market: 19.3, season: "Spring" }),
   bill({ start: "2026-04-29", end: "2026-05-29", days: 30, kwh: 1101, supply: 196.27, delivery: 89.57, taxes: -44.52, supplyRate: 0.07841, market: 20.6, season: "Spring" }),
-  // 2026 summer/fall bills from new PDFs
-  bill({ start: "2026-07-30", end: "2026-08-27", days: 28, kwh: 1474, supply: 92.54, delivery: 114.61, taxes: 23.00, supplyRate: 0.06278, market: 21.5, season: "Summer" }),
-  bill({ start: "2026-08-27", end: "2026-09-29", days: 33, kwh: 1674, supply: 143.64, delivery: 127.67, taxes: 9.81, supplyRate: 0.08581, market: 19.8, season: "Fall" }),
-  bill({ start: "2026-09-29", end: "2026-10-29", days: 30, kwh: 1143, supply: 59.21, delivery: 93.33, taxes: 22.57, supplyRate: 0.05180, market: 19.2, season: "Fall" }),
+  bill({ start: "2026-07-30", end: "2026-08-27", days: 28, kwh: 1474, supply: 92.54, delivery: 114.61, taxes: 23.00, supplyRate: 0.06278, market: 16.2, season: "Summer" }),
+  bill({ start: "2026-08-27", end: "2026-09-29", days: 33, kwh: 1674, supply: 143.64, delivery: 127.67, taxes: 9.81, supplyRate: 0.08581, market: 16.8, season: "Fall" }),
+  bill({ start: "2026-09-29", end: "2026-10-29", days: 30, kwh: 1143, supply: 59.21, delivery: 93.33, taxes: 22.57, supplyRate: 0.05180, market: 15.5, season: "Fall" }),
 ];
