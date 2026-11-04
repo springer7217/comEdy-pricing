@@ -68,7 +68,7 @@ function syntheticPrice(at: Date, rand: () => number): number {
 async function ensureSeeded() {
   const sql = await getSql();
 
-  // Always ensure every seeded bill exists (idempotent via on conflict do nothing)
+  // Always upsert seeded bills so new periods appear even if the table already has rows
   for (const b of SEEDED_BILLS) {
     await sql`
       insert into comed_bills (
@@ -81,7 +81,20 @@ async function ensureSeeded() {
         ${b.supply_rate}, ${b.effective_rate}, ${b.market_avg}, ${b.market_vs_paid_diff},
         ${b.season}, ${b.credits_applied}
       )
-      on conflict (service_start) do nothing
+      on conflict (service_start) do update set
+        service_end = excluded.service_end,
+        days = excluded.days,
+        total_kwh = excluded.total_kwh,
+        supply_amount = excluded.supply_amount,
+        delivery_amount = excluded.delivery_amount,
+        taxes_fees = excluded.taxes_fees,
+        total_due = excluded.total_due,
+        supply_rate = excluded.supply_rate,
+        effective_rate = excluded.effective_rate,
+        market_avg = excluded.market_avg,
+        market_vs_paid_diff = excluded.market_vs_paid_diff,
+        season = excluded.season,
+        credits_applied = excluded.credits_applied
     `;
   }
 
