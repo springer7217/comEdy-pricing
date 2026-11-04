@@ -4,6 +4,8 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { nitro } from "nitro/vite";
+// @ts-expect-error JS plugin alongside the TS vite config
+// import { grokPwaPlugin } from "./scripts/grok-pwa-plugin.mjs"; // missing on v2; remove for deploy
 
 /**
  * Finish PGLite bootstrap during dev-server setup (before traffic). Vite awaits
@@ -140,6 +142,8 @@ export default defineConfig(({ command, isPreview }) => ({
     pgliteBootstrapPlugin(),
     // Before tanstackStart so /auth/popup never falls through to the SPA.
     authPopupPlugin(),
+    // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
+    // grokPwaPlugin(), // missing file; disabled for deploy
     tailwindcss(),
     tanstackStart(),
     ...(command === "build" || isPreview
