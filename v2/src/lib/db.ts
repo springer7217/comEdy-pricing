@@ -83,6 +83,52 @@ function toSql(run: Run): Sql {
   return sql;
 }
 
+/**
+ * Apply migrations/*.sql to Neon before first query (same files + _migrations
+ * tracking as the PGLite path). A Postgres advisory lock serializes concurrent
+ * serverless cold starts; each file is applied + recorded in one transaction.
+ */
+async function migrateNeon(pool: import("pg").Pool): Promise<void> {
+  const migrations = import.meta.glob("/migrations/*.sql", {
+    query: "?raw",
+    import: "default",
+    eager: true,
+  }) as Record<string, string>;
+  const client = await pool.connect();
+  try {
+    await client.query("select pg_advisory_lock(727001)");
+    try {
+      await client.query(
+        "create table if not exists _migrations (name text primary key, applied_at timestamptz not null default now())",
+      );
+      const done = new Set(
+        (await client.query<{ name: string }>("select name from _migrations")).rows.map(
+          (r) => r.name,
+        ),
+      );
+      for (const [path, text] of Object.entries(migrations).sort(([a], [b]) =>
+        a.localeCompare(b),
+      )) {
+        const name = path.split("/").pop() as string;
+        if (done.has(name)) continue;
+        await client.query("begin");
+        try {
+          await client.query(text);
+          await client.query("insert into _migrations (name) values ($1)", [name]);
+          await client.query("commit");
+        } catch (err) {
+          await client.query("rollback");
+          throw err;
+        }
+      }
+    } finally {
+      await client.query("select pg_advisory_unlock(727001)");
+    }
+  } finally {
+    client.release();
+  }
+}
+
 function createNeonSql(): Promise<Sql> {
   globalRef.__pgSqlPromise__ ??= (async () => {
     // Regular Postgres driver: node-postgres (`pg`) — works directly with Neon's
@@ -92,6 +138,7 @@ function createNeonSql(): Promise<Sql> {
     types.setTypeParser(OID_DATE, identity);
     types.setTypeParser(OID_INTERVAL, identity);
     const pool = new Pool({ connectionString: databaseUrl });
+    await migrateNeon(pool);
     return toSql(async <T>(text: string, params: unknown[]) => {
       const res = await pool.query(text, params);
       return res.rows as T[];
